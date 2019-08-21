@@ -1,11 +1,10 @@
 Package: SigQBiC
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Signature-QBiC:Predict the effect of mutational signatures on TFbinding
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Author: Mo Liu, Steve Rozen
+Maintainer: Mo Liu <mo.liu@u.duke.nus.edu>
+Description: Signature-QBiC combines mutational signatures with QBiC ()...
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
