@@ -10,54 +10,27 @@
 #'
 #'@export
 #'
-GenerateNormalizedScoresFromTwelvemers <- function(twelvemers.list,
-                                                   PBMscores) {
-
+GenerateNormalizedScoresFromTwelvemers <- function(twelvemers.list, PBMscores) {
   twelvemers.list <- data.frame(twelvemers.list)
-
-  promoter_seq_NA <- data.frame(setdiff(twelvemers.list[,1],
-                                        all.possible.twelvemers$seq))  ##select 12mers without mutation
-
-  promoter_seq_normal <- data.frame(setdiff(twelvemers.list[,1],
-                                            promoter_seq_NA[, 1]))
-
+  promoter_seq_NA <- data.frame(setdiff(twelvemers.list[, 1], all.possible.twelvemers$seq))  ##select 12mers without mutation
+  promoter_seq_normal <- data.frame(setdiff(twelvemers.list[, 1], promoter_seq_NA[,1]))
   colnames(promoter_seq_NA) <- "promoter_seq"
-
   colnames(promoter_seq_normal) <- "promoter_seq"
-
-  promoter_seq_normal[, 1] <- as.character(promoter_seq_normal[,1])
-
+  promoter_seq_normal[, 1] <- as.character(promoter_seq_normal[, 1])
   promoter_seq_scores <- promoter_seq_normal
-
   PBMscores <- data.frame(PBMscores)
-
   row.names(PBMscores) <- all.possible.twelvemers$seq
-
   PBMscores$promoter_seq <- all.possible.twelvemers$seq
-
-  selected.zscores <- PBMscores[match(promoter_seq_normal$promoter_seq,
-                                      all.scores.matrix$promoter_seq),
-                                ]
-
-
-  promoter_OLS_score[,2] <- selected.zscores[,1]
-
+  selected.zscores <- PBMscores[match(promoter_seq_normal$promoter_seq, all.scores.matrix$promoter_seq),]
+  promoter_OLS_score[, 2] <- selected.zscores[, 1]
   if (dim(promoter_seq_NA)[1] > 0) {
     promoter_seq_NA[, 2] <- "NA"
-    promoter_OLS_score <- rbind(promoter_seq_scores,
-                                promoter_seq_NA)
+    promoter_OLS_score <- rbind(promoter_seq_scores, promoter_seq_NA)
   } else {
     promoter_OLS_score <- promoter_seq_scores
   }
-
   return(promoter_OLS_score)
-
-
-
 }
-
-
-
 #'Scatter plot with linear regression between prediction and observation
 #'
 #'This function generates scatter plot for GRs and LRs of predictions and observations
@@ -70,29 +43,13 @@ GenerateNormalizedScoresFromTwelvemers <- function(twelvemers.list,
 #'
 #'@export
 #'
-
-
-PlotComparisonPlot <- function(Prediction,
-                               Observation) {
-
-  model <- summary(lm(Prediction ~
-                        Observation))
-
-  plot(Prediction ~ Observation, pch = 20,
-       ylab = "", xlab = "", cex = 1)
-
-  abline(lm(Prediction ~ Observation),
-         col = "red")
-
-  legend("topleft", legend = paste("R2 = ",
-                                   format(round(model$adj.r.squared,
-                                                2), nsmall = 2), sep = ""),
-         cex = 1)
-
-
+PlotComparisonPlot <- function(Prediction, Observation) {
+  model <- summary(lm(Prediction ~ Observation))
+  plot(Prediction ~ Observation, pch = 20, ylab = "", xlab = "", cex = 1)
+  abline(lm(Prediction ~ Observation), col = "red")
+  legend("topleft", legend = paste("R2 = ", format(round(model$adj.r.squared, 2),
+                                                   nsmall = 2), sep = ""), cex = 1)
 }
-
-
 #'Generate mutation spectrum from twelvemers
 #'
 #'@param twelvemers.list A list of twelvemers, with a 11mer centered at the mutation base and 1 mutated base appended
@@ -102,114 +59,61 @@ PlotComparisonPlot <- function(Prediction,
 #'@export
 #'
 Generate_96Channel_Spectrum_From_Sample_Twelvemers <- function(twelvemers.list) {
-
   twelvemers.list <- data.frame(twelvemers.list)
-
-  twelvemers.list$ref <- substring(twelvemers.list[,
-                                                   1], 6, 6)
-
+  twelvemers.list$ref <- substring(twelvemers.list[, 1], 6, 6)
   for (i in 1:nrow(twelvemers.list)) {
-
-    if (twelvemers.list$ref[i] == "G" || twelvemers.list$ref[i] =="A") {
-
-      twelvemers.list$mutation.type[i] <- paste(
-        revc(substring(twelvemers.list[i,1], 5, 7)),
-        revc(substring(twelvemers.list[i,1], 12, 12)),
-        sep = "_")
-
+    if (twelvemers.list$ref[i] == "G" || twelvemers.list$ref[i] == "A") {
+      twelvemers.list$mutation.type[i] <- paste(revc(substring(twelvemers.list[i, 1], 5, 7)), revc(substring(twelvemers.list[i, 1], 12, 12)), sep = "")
     } else {
-      twelvemers.list$mutation.type[i] <- paste(
-        substring(twelvemers.list[i,1], 5, 7),
-        substring(twelvemers.list[i,1], 12, 12),sep = "_")
-
+      twelvemers.list$mutation.type[i] <- paste(substring(twelvemers.list[i, 1], 5, 7), substring(twelvemers.list[i, 1], 12, 12), sep = "")
     }
-
-
   }
-
   mutation.types <- data.frame(table(twelvemers.list$mutation.type))
-
-  mutation.types[, 2] <- as.numeric(mutation.types[,2])/sum(as.numeric(mutation.types[,2]))
+  mutation.types[, 2] <- as.numeric(mutation.types[, 2])/sum(as.numeric(mutation.types[,2]))
   return(mutation.types)
 }
-
-
-
 #'Generate GR and LR for a uPBM and a signature (Signature-QBiC)
 #'
 #'@param PBM.scores All QBiC scores for a PBM
 #'
-#'@param signature A list of possibilitie for each mutation type
+#'@param signature A list of possibilitie for each mutation type(mutational spectrum) or a character of name of mutational signature(mutational signature)
+#'
+#'@param type 'mutational spectrum' or 'mutational signature'. Requires a rowname with mutation types for mutational spectrum
 #'
 #'@return A list of GR and LR
 #'
 #'@export
 #'
-
-Signature_QBiC_GR_LR_Generation <- function(PBMname, signature){
-
-  print(PBMname)
-
-  filename <- paste("prediction6mer.",PBMname,sep="")
-
-  PBM.scores <- readRDS(paste("/gpfs/research1/e0081749/QBiC-PRED-scores-rds/",filename,".txt.rds",sep=""))
-
-  PBM.scores <- data.frame(PBM.scores)
-
+Signature_QBiC_GR_LR_Generation <- function(uPBM_QBiC_scores, signature, type) {
+  PBM.scores <- data.frame(uPBM_QBiC_scores)
   row.names(PBM.scores) <- all.possible.twelvemers$seq
-
   PBM.scores$final_signature <- all.possible.twelvemers$final_signature
-
-  number <- as.integer(max(PBM.scores[,1])) + 2
-
+  number <- as.integer(max(PBM.scores[, 1])) + 2
   counts.signature <- 0
-
-
-  for(mutation.type in mutation.type.list){
-
-    histogram_plot_mutation <- hist(as.numeric(PBM.scores$PBM.scores[which(PBM.scores$final_signature==mutation.type)] ),
-                                    breaks=seq(-number,number,0.5),plot=F)
-
-
-    counts_temp <-  as.numeric(histogram_plot_mutation$counts) *  PCAWG.subs.signature[mutation.type,signature]
-
-
-
+  if (type == "mutational signatures") {
+    signature.matrix <- PCAWG.subs.signature[, signature]
+  } else {
+    signature.matrix <- signature
+  }
+  for (mutation.type in mutation.type.list) {
+    histogram_plot_mutation <- hist(as.numeric(PBM.scores[which(PBM.scores$final_signature == mutation.type),1]),
+                                    breaks = seq(-number, number, 0.5), plot = F)
+    counts_temp <- as.numeric(histogram_plot_mutation$counts) * signature.matrix[mutation.type, signature]
     counts.signature <- counts.signature + counts_temp
-
-
   }
   #######################################################################
-
-  histogram_plot_raw <- hist(as.numeric(PBM.scores[,1]),breaks=seq(-number,number,0.5),plot=F)
-
-
-  neg_index <- which(histogram_plot_raw$mids<0)
-  pos_index <- which(histogram_plot_raw$mids>0)
-
-  neg.sum.raw <-  sum(histogram_plot_raw$mids[neg_index] * histogram_plot_raw$counts[neg_index]) / sum(histogram_plot_raw$counts[neg_index])
-
-  pos.sum.raw <-  sum(histogram_plot_raw$mids[pos_index] * histogram_plot_raw$counts[pos_index]) / sum(histogram_plot_raw$counts[pos_index])
-
-
-  normalized.counts.signature <- sum(histogram_plot_raw$counts)*counts.signature/sum(counts.signature) #normalization
-
+  histogram_plot_raw <- hist(as.numeric(PBM.scores[, 1]), breaks = seq(-number, number, 0.5), plot = F)
+  neg_index <- which(histogram_plot_raw$mids < 0)
+  pos_index <- which(histogram_plot_raw$mids > 0)
+  neg.sum.raw <- sum(histogram_plot_raw$mids[neg_index] * histogram_plot_raw$counts[neg_index])/sum(histogram_plot_raw$counts[neg_index])
+  pos.sum.raw <- sum(histogram_plot_raw$mids[pos_index] * histogram_plot_raw$counts[pos_index])/sum(histogram_plot_raw$counts[pos_index])
+  normalized.counts.signature <- sum(histogram_plot_raw$counts) * counts.signature/sum(counts.signature)  #normalization
   histogram_plot_weighted <- histogram_plot_raw
-
-  neg.sum.weighted <-  sum(histogram_plot_weighted$mids[neg_index] * normalized.counts.signature[neg_index])/sum(normalized.counts.signature[neg_index])
-
-  pos.sum.weighted <-  sum(histogram_plot_weighted$mids[pos_index] * normalized.counts.signature[pos_index])/sum(normalized.counts.signature[pos_index])
-
-
-
-  list <- c(pos.sum.weighted,neg.sum.weighted) / c(pos.sum.raw,neg.sum.raw)
-
+  neg.sum.weighted <- sum(histogram_plot_weighted$mids[neg_index] * normalized.counts.signature[neg_index])/sum(normalized.counts.signature[neg_index])
+  pos.sum.weighted <- sum(histogram_plot_weighted$mids[pos_index] * normalized.counts.signature[pos_index])/sum(normalized.counts.signature[pos_index])
+  list <- c(pos.sum.weighted, neg.sum.weighted)/c(pos.sum.raw, neg.sum.raw)
   return(list)
 }
-
-
-
-
 #'Plot histogram for each mutation class for a given signature and uPBM experiment name
 #'
 #'@param PBMname
@@ -221,87 +125,42 @@ Signature_QBiC_GR_LR_Generation <- function(PBMname, signature){
 #'
 #'@export
 #'
-
-
-
-Signature_QBiC_Plot_Generation <- function(PBMname,
-                                           signature) {
-
-  print(PBMname)
-
+Signature_QBiC_Plot_Generation <- function(uPBM_QBiC_scores, signature, output_name) {
   signature <- data.frame(signature)
-
-  row.names(signature) <- as.character(signature[,1])
-
-  PBM.scores <- readRDS(paste("/gpfs/research1/e0081749/QBiC-PRED-scores-rds/prediction6mer.",
-                              PBMname, ".txt.rds", sep = ""))
-
-  PBM.scores <- data.frame(PBM.scores)
-
+  PBM.scores <- data.frame(uPBM_QBiC_scores)
   row.names(PBM.scores) <- all.possible.twelvemers$seq
-
   PBM.scores$final_signature <- all.possible.twelvemers$final_signature
-
   number <- as.integer(max(PBM.scores[,1])) + 2
-
   densities.weighted <- 0
-
-  pdf(paste("~/", signature, ".",
-            PBMname, ".subtype.uPBM.OLS.pdf",
-            sep = ""), width = 16, height = 32)
+  pdf(output_name, width = 16, height = 32)
   par(mfrow = c(8, 4))
   for (mutation.type in mutation.type.list) {
-
-
-    histogram_plot <- hist(
-      as.numeric(
-        PBM.scores$PBM.scores[which(PBM.scores$final_signature == mutation.type)]),
-      breaks = seq(-number, number, 0.5), plot = F)
-
-    density_temp <- as.numeric(histogram_plot$density) *
-      PCAWG.subs.signature[mutation.type, signature]
-
-    densities.weighted <- densities.weighted +
-      density_temp
-
-    plot(histogram_plot, main = mutation.type,
-         col = "black", freq = F,
-         ylim = c(0, ylimits))
-
+    histogram_plot <- hist(as.numeric(PBM.scores$PBM.scores[which(PBM.scores$final_signature ==
+                                                                    mutation.type)]), breaks = seq(-number, number, 0.5), plot = F)
+    density_temp <- as.numeric(histogram_plot$density) * PCAWG.subs.signature[mutation.type,
+                                                                              signature]
+    densities.weighted <- densities.weighted + density_temp
+    plot(histogram_plot, main = mutation.type, col = "black", freq = F, ylim = c(0,
+                                                                                 ylimits))
     histogram_plot$density <- density_temp
-
-    plot(histogram_plot, main = mutation.type,
-         col = "grey", freq = F,
-         ylim = c(0, ylimits))
-
-
+    plot(histogram_plot, main = mutation.type, col = "grey", freq = F, ylim = c(0,
+                                                                                ylimits))
   }
-  histogram_plot <- hist(as.numeric(PBM.scores[,1]),
-                         breaks = seq(-number, number, 0.5),
-                         plot = F)
-
+  histogram_plot <- hist(as.numeric(PBM.scores[, 1]), breaks = seq(-number, number,
+                                                                   0.5), plot = F)
   ylimits_raw <- max(histogram_plot$density)
-
   ylimits_weighted <- max(densities.weighted)
-
-  ylimits <- max(c(ylimits_raw, ylimits_weighted)) +
-    0.05
-
-  plot(histogram_plot, col = "black",
-       freq = F, ylim = c(0, ylimits))
-
+  ylimits <- max(c(ylimits_raw, ylimits_weighted)) + 0.05
+  plot(histogram_plot, col = "black", freq = F, ylim = c(0, ylimits))
   histogram_plot$density <- densities.weighted
-
-  plot(histogram_plot, col = "grey",
-       freq = F, ylim = c(0, ylimits))
+  plot(histogram_plot, col = "grey", freq = F, ylim = c(0, ylimits))
   dev.off()
 }
-
 #'Identify pathways that enriched with affected TFs by a given mutational signature
 #'
 #'A function gives the pathways enriched with affected TFs by a given mutational signature
 #'
-#'@param gain.TF.list A list of affected TFs
+#'@param TF.list A list of affected TFs
 #'
 #'@param qvalue A number of qvalue as filter
 #'
@@ -311,43 +170,21 @@ Signature_QBiC_Plot_Generation <- function(PBMname,
 #'
 #'@export
 #'
-Pathway_Selection <- function(gain.TF.list,
-                              qvalue, dbs.selected) {
-
-  gain.TF.list <- TF.uPBM.info.check.right.max$Gene[TF.uPBM.info.check.right.max[,
-                                                                                 signature] > 1]
-
-
-  enriched <- enrichr(gain.TF.list,
-                      dbs.selected)
-
-  enriched.matrix.gain <- enriched[[dbs.selected]]
-
-  enriched.matrix.gain$TF.counts <- length(unique(gain.TF.list))
-
-
-  enriched.matrix.gain$TFs <- apply(enriched.matrix.gain,
-                                    1, function(x) {
-                                      x["TFs"] <- unlist(strsplit(x["Overlap"],
-                                                                  "/"))[1]
-                                    })
-
-  enriched.matrix.gain <- enriched.matrix.gain[enriched.matrix.gain$Adjusted.P.value <
+Pathway_Selection <- function(TF.list, qvalue, dbs.selected) {
+  enriched <- enrichr(TF.list, dbs.selected)
+  enriched.matrix <- enriched[[dbs.selected]]
+  enriched.matrix$TF.counts <- length(unique(TF.list))
+  enriched.matrix$TFs <- apply(enriched.matrix.gain, 1, function(x) {
+    x["TFs"] <- unlist(strsplit(x["Overlap"], "/"))[1]
+  })
+  enriched.matrix <- enriched.matrix[enriched.matrix$Adjusted.P.value <
                                                  qvalue, ]
-
-  enriched.matrix.gain$New.Term <- apply(enriched.matrix.gain,
-                                         1, function(x) {
-
-
-                                           x["New.Term"] <- unlist(strsplit(x["Term"],
-                                                                            "[_]", perl = T))[1]
-
-
-                                         })
-
-
-
+  enriched.matrix$New.Term <- apply(enriched.matrix, 1, function(x) {
+    x["New.Term"] <- unlist(strsplit(x["Term"], "[_]", perl = T))[1]
+  })
 }
+
+
 
 #'Scatter plot with linear regression between prediction and observation
 #'
@@ -359,69 +196,33 @@ Pathway_Selection <- function(gain.TF.list,
 #'
 #'@export
 #'
-
-Mutation_Type_Contribution <- function(PBMname,signature){
-
+Mutation_Type_Contribution <- function(uPBM_QBiC_scores, signature) {
   summary.matrix <- data.frame(mutation.type.list)
-
-  summary.matrix[,2:9] <- 0
-
-  print(PBMname)
-
-  filename <- paste("prediction6mer.",PBMname,sep="")
-
-  PBM.scores <- readRDS(paste("/gpfs/research1/e0081749/QBiC-PRED-scores-rds/",filename,".txt.rds",sep=""))
-
-  PBM.scores <- data.frame(PBM.scores)
-
+  summary.matrix[, 2:9] <- 0
+  PBM.scores <- data.frame(uPBM_QBiC_scores)
   row.names(PBM.scores) <- all.possible.twelvemers$seq
-
   PBM.scores$final_signature <- all.possible.twelvemers$final_signature
-
-  number <- as.integer(max(PBM.scores[,1])) + 2
-
-
+  number <- as.integer(max(PBM.scores[, 1])) + 2
   k <- 0
-  for(mutation.type in mutation.type.list){
-
-    k <- k+1
-    histogram_plot <- hist(as.numeric(PBM.scores$PBM.scores[which(PBM.scores$final_signature==mutation.type)]),
-                           breaks=seq(-number,number,0.5),plot=F)
-
-   counts.signature.temp <- as.numeric(histogram_plot$counts) * PCAWG.subs.signature[mutation.type,signature]
-
+  for (mutation.type in mutation.type.list) {
+    k <- k + 1
+    histogram_plot <- hist(as.numeric(PBM.scores$PBM.scores[which(PBM.scores$final_signature ==
+                                                                    mutation.type)]), breaks = seq(-number, number, 0.5), plot = F)
+    counts.signature.temp <- as.numeric(histogram_plot$counts) * PCAWG.subs.signature[mutation.type,
+                                                                                      signature]
     counts.original.temp <- as.numeric(histogram_plot$counts)/96
-
-    counts.signature <- counts.signature +counts.signature.temp
-
+    counts.signature <- counts.signature + counts.signature.temp
     counts.original <- counts.original + counts.original.temp
-
-
-    neg_index <- which(histogram_plot$mids<0)
-    pos_index <- which(histogram_plot$mids>0)
-
-
-    summary.matrix[k,2] <-  sum(histogram_plot$mids[neg_index] * counts.signature.temp[neg_index])
-
-    summary.matrix[k,3] <-  sum(histogram_plot$mids[pos_index] * counts.signature.temp[pos_index])
-
-    summary.matrix[k,4] <-  sum(histogram_plot$mids[neg_index] * counts.original.temp[neg_index])
-
-    summary.matrix[k,5] <-  sum(histogram_plot$mids[pos_index] * counts.original.temp[pos_index])
-
-
-
-
+    neg_index <- which(histogram_plot$mids < 0)
+    pos_index <- which(histogram_plot$mids > 0)
+    summary.matrix[k, 2] <- sum(histogram_plot$mids[neg_index] * counts.signature.temp[neg_index])
+    summary.matrix[k, 3] <- sum(histogram_plot$mids[pos_index] * counts.signature.temp[pos_index])
+    summary.matrix[k, 4] <- sum(histogram_plot$mids[neg_index] * counts.original.temp[neg_index])
+    summary.matrix[k, 5] <- sum(histogram_plot$mids[pos_index] * counts.original.temp[pos_index])
   }
-
-  summary.matrix[,6] <- as.numeric(summary.matrix[,3])/sum(as.numeric(summary.matrix[,3]))
-
-  summary.matrix[,7] <-  as.numeric(summary.matrix[,2])/sum(as.numeric(summary.matrix[,2])) ##this gives a contribution of all final scores, in another word: all sums
-
-  colnames(summary.matrix) <- c("mutation.type","neg.sig.sum","pos.sig.sum","neg.original.sum","pos.original.sum","pos.sig.contribute","neg.sig.contribute")
-
+  summary.matrix[, 6] <- as.numeric(summary.matrix[, 3])/sum(as.numeric(summary.matrix[, 3]))
+  summary.matrix[, 7] <- as.numeric(summary.matrix[, 2])/sum(as.numeric(summary.matrix[, 2]))
+  summary.matrix <- summary.matrix[, c(1, 6, 7)]  ##this gives a contribution of all final scores, in another word: all sums
+  colnames(summary.matrix) <- c("mutation.type", "pos.sig.contribute", "neg.sig.contribute")
   return(summary.matrix)
-
 }
-
-
