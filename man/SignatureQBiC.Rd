@@ -15,6 +15,5 @@ SignatureQBiC(uPBM_QBiC_scores, spectrum)
 A list of GR and LR
 }
 \description{
-SignatureQBiC model. This function generates Gain Ratio and Loss Ratio for a TF (represented by universal PBM) with
-a mutational signature (or a mutation spectrum)
+SignatureQBiC model. This function generates Gain Ratio and Loss Ratio for a TF (represented by universal PBM) with a mutational signature (or a mutation spectrum)
 }

@@ -16,7 +16,7 @@ test_that("SignatureQBiC Model", {
 
   row.names(spectrum) <- mutation.type.list
 
-  uPBM.scores <- fread("./testdata/prediction6mer.Mus_musculus_M01396_1.94d_Berger08_Arx_1738.2.txt",fill=T)
+  uPBM.scores <- readRDS("./testdata/prediction6mer.Mus_musculus_M01396_1.94d_Berger08_Arx_1738.2.rds")
 
 
   expect_equal(SignatureQBiC(uPBM.scores,spectrum), c(1.668,0.410))

@@ -2,12 +2,12 @@
 % Please edit documentation in R/Functions.R
 \name{MutationTypeContribution}
 \alias{MutationTypeContribution}
-\title{Scatter plot with linear regression between prediction and observation}
+\title{Compute the contribution}
 \usage{
 MutationTypeContribution(uPBM_QBiC_scores, spectrum)
 }
 \arguments{
-\item{uPBM_QBiC_scores}{A character of name of PBM experiment}
+\item{uPBM_QBiC_scores}{QBiC scores of a uPBM experiment}
 
 \item{spectrum}{A list of possibilities for each mutation type(mutational spectrum) or a character of name of mutational signature(mutational signature)}
 }
@@ -15,5 +15,5 @@ MutationTypeContribution(uPBM_QBiC_scores, spectrum)
 A matrix with contribution to the gain-binding and loss-binding for each of 96 mutation types
 }
 \description{
-Scatter plot with linear regression between prediction and observation
+Compute the contribution
 }

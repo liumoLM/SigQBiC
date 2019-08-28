@@ -15,3 +15,4 @@ A matrix with contribution to the gain-binding and loss-binding for each of 96 m
 \description{
 An internal function to transit spectrum into 96 channel
 }
+\keyword{internal}

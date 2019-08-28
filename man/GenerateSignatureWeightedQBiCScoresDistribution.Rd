@@ -16,5 +16,5 @@ GenerateSignatureWeightedQBiCScoresDistribution(uPBM_QBiC_scores, spectrum,
 A plot of histograms
 }
 \description{
-Plot histogram for each mutation class for a given signature and uPBM experiment name
+
 }

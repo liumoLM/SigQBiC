@@ -21,7 +21,7 @@ test_that("Compute Contribution of Each Mutation Class to GR and LR", {
 
   example_contribution <- data.frame(example_contribution)
 
-  uPBM.scores <- fread("./testdata/prediction6mer.Mus_musculus_M01396_1.94d_Berger08_Arx_1738.2.txt",fill=T)
+  uPBM.scores <- readRDS("./testdata/prediction6mer.Mus_musculus_M01396_1.94d_Berger08_Arx_1738.2.rds")
 
   expect_equal(MutationTypeContribution(uPBM.scores,spectrum), example_contribution)
 })
