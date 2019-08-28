@@ -14,7 +14,7 @@ Pathway_Selection(TF.list, qvalue, dbs.selected)
 \item{dbs.selected}{A character of database name in 'enrichR'. In our paper, we used 'Reactome_2016'}
 }
 \value{
-TODO
+A matrix of pathways enriched with given TFs
 }
 \description{
 A function gives the pathways enriched with affected TFs by a given mutational signature

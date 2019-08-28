@@ -75,14 +75,12 @@ output$mutclass <- apply(output,1,function(x){
   return(x["mutclass"])
 })
 
-output <- output[output$sum==0,c(3,7)]
+all.possible.twelvemers <- output[output$sum==0,c(3,7)]
 
 
 
-devtools::use_data(output,all.possible.twelvemers,internal=TRUE)
 
-
-.canonical.96.row.order <-
+mutation.type.list <-
   c("ACAA", "ACCA", "ACGA", "ACTA", "CCAA", "CCCA", "CCGA", "CCTA",
     "GCAA", "GCCA", "GCGA", "GCTA", "TCAA", "TCCA", "TCGA", "TCTA",
     "ACAG", "ACCG", "ACGG", "ACTG", "CCAG", "CCCG", "CCGG", "CCTG",
@@ -96,6 +94,10 @@ devtools::use_data(output,all.possible.twelvemers,internal=TRUE)
     "ATAG", "ATCG", "ATGG", "ATTG", "CTAG", "CTCG", "CTGG", "CTTG",
     "GTAG", "GTCG", "GTGG", "GTTG", "TTAG", "TTCG", "TTGG", "TTTG"
   )
-devtools::use_data(.canonical.96.row.order,mutation.type.list,internal=TRUE)
+
+
+
+
+usethis::use_data(all.possible.twelvemers,mutation.type.list,internal=TRUE,overwrite = T)
 
 

@@ -2,10 +2,12 @@ Package: SigQBiC
 Type: Package
 Title: Signature-QBiC:Predict the effect of mutational signatures on TF binding
 Version: 0.1.1
-Author: Mo Liu, Steve Rozen
+Author: Mo Liu
 Maintainer: Mo Liu <mo.liu@u.duke.nus.edu>
-Description: Signature-QBiC combines mutational signatures with QBiC ()...
+Description: Signature-QBiC integrates mutational signature profiles with the QBiC method to investigate the effect of mutational signatures on the binding of TFs.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.1.1
+Suggests: 
+    testthat
