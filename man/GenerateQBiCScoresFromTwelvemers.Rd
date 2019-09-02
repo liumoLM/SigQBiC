@@ -4,12 +4,12 @@
 \alias{GenerateQBiCScoresFromTwelvemers}
 \title{Generate QBiC scores for all uPBMs for a given list of twelvemers}
 \usage{
-GenerateQBiCScoresFromTwelvemers(uPBM_QBiC_scores, twelvemers.list)
+GenerateQBiCScoresFromTwelvemers(uPBM_QBiC_scores, twelvemers)
 }
 \arguments{
 \item{uPBM_QBiC_scores}{All QBiC scores for a universal PBM}
 
-\item{twelvemers.list}{A list of twelvemers, with a 11mer centered at the mutation base and 1 mutated base appended}
+\item{twelvemers}{A list of twelvemers, with a 11mer centered at the mutation base and 1 mutated base appended}
 }
 \value{
 A list of scores for the given twelvemers list

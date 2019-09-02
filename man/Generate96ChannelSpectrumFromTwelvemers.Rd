@@ -4,10 +4,10 @@
 \alias{Generate96ChannelSpectrumFromTwelvemers}
 \title{Generate mutation spectrum from twelvemers}
 \usage{
-Generate96ChannelSpectrumFromTwelvemers(twelvemers.list)
+Generate96ChannelSpectrumFromTwelvemers(twelvemers)
 }
 \arguments{
-\item{twelvemers.list}{A list of twelvemers, with a 11mer centered at the mutation base and 1 mutated base appended}
+\item{twelvemers}{A list of twelvemers, with a 11mer centered at the mutation base and 1 mutated base appended}
 }
 \value{
 A mutation spectrum with 96 mutation types
