@@ -4,15 +4,17 @@
 \alias{MutationTypeContribution}
 \title{Compute the contribution}
 \usage{
-MutationTypeContribution(uPBM_QBiC_scores, spectrum)
+MutationTypeContribution(uPBM_QBiC_scores, p_values, spectrum)
 }
 \arguments{
-\item{uPBM_QBiC_scores}{QBiC scores of a uPBM experiment}
+\item{uPBM_QBiC_scores}{All QBiC scores for a universal PBM}
+
+\item{p_values}{p_values for all twelvemers}
 
 \item{spectrum}{A list of possibilities for each mutation type(mutational spectrum) or a character of name of mutational signature(mutational signature)}
 }
 \value{
-A matrix with contribution to the gain-binding and loss-binding for each of 96 mutation types
+A matrix with contribution to the GR and LR for each of 96 mutation types
 }
 \description{
 Compute the contribution

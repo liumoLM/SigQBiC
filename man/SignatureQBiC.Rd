@@ -4,10 +4,12 @@
 \alias{SignatureQBiC}
 \title{Generate GR and LR for a uPBM and a signature (Signature-QBiC)}
 \usage{
-SignatureQBiC(uPBM_QBiC_scores, spectrum)
+SignatureQBiC(uPBM_QBiC_scores, p_values, spectrum)
 }
 \arguments{
 \item{uPBM_QBiC_scores}{All QBiC scores for a universal PBM}
+
+\item{p_values}{p_values for all twelvemers}
 
 \item{spectrum}{A list of possibilities for each mutation type(mutational spectrum) or a character of name of mutational signature(mutational signature)}
 }
