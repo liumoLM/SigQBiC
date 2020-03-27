@@ -97,6 +97,7 @@ Generate96ChannelSpectrumFromTwelvemers <- function(twelvemers) {
 #'@return A list of GR and LR
 #'
 SignatureQBiC <- function(uPBM_QBiC_scores, spectrum) {
+
   uPBM_QBiC_scores <- data.frame(uPBM_QBiC_scores)
   uPBM_QBiC_scores <- uPBM_QBiC_scores$z_score[which(!is.na(uPBM_QBiC_scores$z_score))]
   PBM.scores <- data.frame(uPBM_QBiC_scores)
@@ -266,18 +267,24 @@ MutationTypeContribution <- function(uPBM_QBiC_scores, spectrum) {
 
 check.spectrum <- function(spectrum) {
 
-  spectrum.96.channel <- data.frame(mutation.type.list)
+  if(row.names(spectrum) %in% mutation.type.list){
+    spectrum.96.channel <- data.frame(mutation.type.list)
 
-  spectrum.96.channel$possibility <- 0
+    spectrum.96.channel$possibility <- 0
 
-  spectrum.96.channel$possibility <- spectrum[match(row.names(spectrum), spectrum.96.channel[,
-                                                                                             1]), 1]
+    spectrum.96.channel$possibility <- spectrum[match(row.names(spectrum), spectrum.96.channel[,
+                                                                                               1]), 1]
 
-  if (sum(is.na(spectrum.96.channel$possibility)) > 0) {
-    spectrum.96.channel$possibility[which(is.na(spectrum.96.channel$possibility))] <- 0
+    if (sum(is.na(spectrum.96.channel$possibility)) > 0) {
+      spectrum.96.channel$possibility[which(is.na(spectrum.96.channel$possibility))] <- 0
+    }
+
+    row.names(spectrum.96.channel) <- mutation.type.list
+    return(spectrum.96.channel)
+  }else{
+    print("Error in Row Names")
   }
 
-  row.names(spectrum.96.channel) <- mutation.type.list
-  return(spectrum.96.channel)
+
 
 }
