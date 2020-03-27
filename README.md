@@ -18,7 +18,7 @@ an 11-mer.
 
 ### Development version
 
-Install the stable version of SigQBiC from the master branch on
+Install the latest version of SigQBiC from the master branch on
 [GitHub](https://github.com/), which may not be stable:
 
 ``` r

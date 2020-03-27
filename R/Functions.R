@@ -10,7 +10,7 @@
 #'
 #'@export
 #'
-GenerateQBiCScoresFromTwelvemers <- function(uPBM_QBiC_scores, twelvemers) {
+GenerateQBiCScoresForTwelvemers <- function(uPBM_QBiC_scores, twelvemers) {
   twelvemers <- data.frame(twelvemers)
   seq_NA <- data.frame(setdiff(twelvemers[, 1], all.possible.twelvemers$seq))  ##select 12mers without mutation
   seq_mut <- data.frame(setdiff(twelvemers[, 1], seq_NA[, 1]))
@@ -35,7 +35,6 @@ GenerateQBiCScoresFromTwelvemers <- function(uPBM_QBiC_scores, twelvemers) {
   return(seq_scores)
 }
 
-
 #'@title Generate mutation spectrum from twelvemers
 #'
 #'@description This function generates a mutation spectrum of 96 mutation classes (mutations on pyrimidine centered trinucleotide) from a list of twelvemers
@@ -46,44 +45,57 @@ GenerateQBiCScoresFromTwelvemers <- function(uPBM_QBiC_scores, twelvemers) {
 #'
 #'@export
 #'
-Generate96ChannelSpectrumFromTwelvemers <- function(twelvemers) {
-  twelvemers <- data.frame(twelvemers)
-  twelvemers$ref <- substring(twelvemers[, 1], 6, 6)
-  for (i in 1:nrow(twelvemers)) {
-    if (twelvemers$ref[i] == "G" || twelvemers$ref[i] == "A") {
-      twelvemers$mutclass[i] <- paste(spgs::reverseComplement(substring(twelvemers[i,
-                                                                                             1], 5, 7), case = "upper"), spgs::reverseComplement(substring(twelvemers[i,
-                                                                                                                                                                           1], 12, 12), case = "upper"), sep = "")
-    } else {
-      twelvemers$mutclass[i] <- paste(substring(twelvemers[i, 1],
-                                                     5, 7), substring(twelvemers[i, 1], 12, 12), sep = "")
-    }
-  }
-
-  mutation.spectrum <- data.frame(table(twelvemers$mutclass))
-  mutation.spectrum[, 2] <- as.numeric(mutation.spectrum[, 2])/sum(as.numeric(mutation.spectrum[,
-                                                                                                2]))
-
+Generate96ChannelSpectrumFromTwelvemers <- function(input.twelvemers.list) {
+  
+  mutation.type.list <- ICAMS::catalog.row.order$SBS96
+  # Create 2 new columns that show the 3072 and 1536 mutation type
+  context <- substring(input.twelvemers.list,5,7)
+  mutations <- paste0(context,substring(input.twelvemers.list,12,12))
+  # PyrPenta maps to strand-agnostic category
+  # e.g. ATGCT>T "ATGCTT" maps to AGCAT>A, "AGCATA"
+  pyr.mutation <- PyrPenta(mutations)
+  mutation.spectrum <- data.frame(table(pyr.mutation))
   all.mutation.class <- data.frame(mutation.type.list)
-
   all.mutation.class[, 2] <- 0
-
   all.mutation.class[, 2] <- mutation.spectrum[match(all.mutation.class[, 1], mutation.spectrum[,
                                                                                                 1]), 2]
-
   if (sum(is.na(all.mutation.class[, 2])) > 0) {
-
     all.mutation.class[which(is.na(all.mutation.class[, 2])), 2] <- 0
-
   }
-
   colnames(all.mutation.class) <- c("mutclass", "proportion")
-
   all.mutation.class$mutclass <- as.character(all.mutation.class$mutclass)
-
   return(all.mutation.class)
-
+  # Create part of the 1536 catalog matrix but missing mutation
+  # types have NA in the count column.
+  # Create the 96 catalog matrix
+  # if (is.null(trans.ranges)) {
+  #   return(list(catSBS96 = mat96, catSBS1536 = mat1536))
+  # }
+  # One SBS mutation can be represented by more than 1 row in vcf2 if the mutation
+  # position falls into the range of multiple transcripts. When creating the
+  # 192 catalog, we only need to count these mutations once.
 }
+
+#'@title Convert mutations to pyrimidine centred. 
+#'
+#'@description This function converts trinucleotide context mutations to pyrimidine centred. For example, CGA > CAA will be converted to TCG > TTG
+#'
+#'@param mutstring A string with for characters: proceeding base - reference base - following base - mutated base (For example, CGA > CCA was input as CGAC)
+#'
+#'@return A pyrimidine centred mutation
+#'
+#'@export
+#'
+PyrPenta <- function(mutstring) {
+  stopifnot(nchar(mutstring) == rep(4, length(mutstring)))
+  output <-
+    ifelse(substr(mutstring, 2, 2) %in% c("A", "G"),
+           paste0(revc(substr(mutstring, 1,3)),
+                  revc(substr(mutstring, 4,4))),
+           mutstring)
+  return(output)
+}
+
 
 
 #'Generate GR and LR for a uPBM and a signature (Signature-QBiC)
@@ -92,14 +104,16 @@ Generate96ChannelSpectrumFromTwelvemers <- function(twelvemers) {
 #'
 #'@param uPBM_QBiC_scores All QBiC scores for a universal PBM
 #'
+#'@param p_values p_values for all twelvemers
+#'
 #'@param spectrum A list of possibilities for each mutation type(mutational spectrum) or a character of name of mutational signature(mutational signature)
 #'
 #'@return A list of GR and LR
 #'
-SignatureQBiC <- function(uPBM_QBiC_scores, spectrum) {
 
+SignatureQBiC <- function(uPBM_QBiC_scores, p_values, spectrum) {
   uPBM_QBiC_scores <- data.frame(uPBM_QBiC_scores)
-  uPBM_QBiC_scores <- uPBM_QBiC_scores$z_score[which(!is.na(uPBM_QBiC_scores$z_score))]
+  uPBM_QBiC_scores <- uPBM_QBiC_scores$z_score[!is.na(uPBM_QBiC_scores$z_score)]
   PBM.scores <- data.frame(uPBM_QBiC_scores)
 
   row.names(PBM.scores) <- all.possible.twelvemers$seq
@@ -107,6 +121,10 @@ SignatureQBiC <- function(uPBM_QBiC_scores, spectrum) {
   number <- as.integer(max(PBM.scores[, 1])) + 2
 
   mutation.spectrum <- check.spectrum(spectrum)
+  p_values <- data.frame(p_values)
+  p_values <- p_values[!is.na(p_values[,1]),1]
+  adjust_p_value <- p.adjust(p_values)
+  PBM.scores <- PBM.scores[adjust_p_value<0.05,]
 
   counts_signature <- 0
 
@@ -136,7 +154,7 @@ SignatureQBiC <- function(uPBM_QBiC_scores, spectrum) {
 #'
 #'@description
 #'
-#'@param uPBM_QBiC_scores All QBiC scores for a PBM
+#'@param uPBM_QBiC_scores All QBiC scores for a universal PBM
 #'
 #'@param spectrum A list of GR/LR generated by Signature-QBiC from observed mutation spectrum
 #'
@@ -144,7 +162,7 @@ SignatureQBiC <- function(uPBM_QBiC_scores, spectrum) {
 #'
 #'@export
 #'
-GenerateSignatureWeightedQBiCScoresDistribution <- function(uPBM_QBiC_scores, spectrum,
+GenerateSignatureWeightedDistributionPlots <- function(uPBM_QBiC_scores, spectrum,
                                                             output_name) {
 
   uPBM_QBiC_scores <- data.frame(uPBM_QBiC_scores)
@@ -187,7 +205,7 @@ GenerateSignatureWeightedQBiCScoresDistribution <- function(uPBM_QBiC_scores, sp
 #'
 #'@param TF.list A list of affected TFs
 #'
-#'@param qvalue A number of qvalue as filter
+#'@param qvalue A numeric of qvalue as filter
 #'
 #'@param dbs.selected A character of database name in 'enrichR'. In our paper, we used 'Reactome_2016'
 #'
@@ -195,7 +213,7 @@ GenerateSignatureWeightedQBiCScoresDistribution <- function(uPBM_QBiC_scores, sp
 #'
 #'@export
 #'
-Pathway_Selection <- function(TF.list, qvalue, dbs.selected) {
+PathwaySelection <- function(TF.list, qvalue, dbs.selected) {
   enriched <- enrichr(TF.list, dbs.selected)
   enriched.matrix <- enriched[[dbs.selected]]
   enriched.matrix$TF.counts <- length(unique(TF.list))
@@ -214,26 +232,33 @@ Pathway_Selection <- function(TF.list, qvalue, dbs.selected) {
 
 #'Compute the contribution
 #'
-#'@param uPBM_QBiC_scores QBiC scores of a uPBM experiment
+#'@param uPBM_QBiC_scores All QBiC scores for a universal PBM
 #'
 #'@param spectrum A list of possibilities for each mutation type(mutational spectrum) or a character of name of mutational signature(mutational signature)
 #'
-#'@return A matrix with contribution to the gain-binding and loss-binding for each of 96 mutation types
+#'@param p_values p_values for all twelvemers
+#'
+#'@return A matrix with contribution to the GR and LR for each of 96 mutation types
 #'
 #'@export
 #'
-MutationTypeContribution <- function(uPBM_QBiC_scores, spectrum) {
+MutationTypeContribution <- function(uPBM_QBiC_scores, p_values, spectrum) {
   summary.matrix <- data.frame(mutation.type.list)
   summary.matrix[, 2:5] <- 0
   summary.matrix[, 1] <- as.character(summary.matrix[, 1])
   uPBM_QBiC_scores <- data.frame(uPBM_QBiC_scores)
   uPBM_QBiC_scores <- uPBM_QBiC_scores$z_score[which(!is.na(uPBM_QBiC_scores$z_score))]
   PBM.scores <- data.frame(uPBM_QBiC_scores)
+
   row.names(PBM.scores) <- all.possible.twelvemers$seq
   PBM.scores$mutclass <- all.possible.twelvemers$mutclass
   number <- as.integer(max(PBM.scores[, 1])) + 2
 
   mutation.spectrum <- check.spectrum(spectrum)
+  p_values <- data.frame(p_values)
+  p_values <- p_values[!is.na(p_values[,1]),1]
+  adjust_p_value <- p.adjust(p_values)
+  PBM.scores <- PBM.scores[adjust_p_value<0.05,]
 
   k <- 0
   for (mutation.type in mutation.type.list) {
