@@ -1,0 +1,566 @@
+---
+title: "Code for Liu etal"
+author: "Mo Liu"
+date: "15/05/2020"
+output: html_document
+---
+
+It is difficult to provide everything for the whole pipeline, as some data is downloaded from QBiC website and some data is stored locally. I put the code here but it is not possible to repeat the experiment by just running this. Feel free to email me if you are interested in any part of this study and I would like to provide more details about processing data.
+
+required packages
+```{r}
+library(gplots)
+library(RColorBrewer)
+library(data.table)
+library(enrichR)
+library(ggplot2)
+library(devtools)
+library(stringi)
+library('lsa') # for cosine()
+
+```
+
+
+```{r}
+unartifact.signatures <- c("SBS1",  "SBS2" ,  "SBS3" ,  "SBS4"  , "SBS5" ,"SBS6",   "SBS7a" , "SBS7b",  "SBS7c",  "SBS7d" , "SBS8", "SBS9","SBS10a" ,"SBS10b","SBS11" , "SBS12" , "SBS13",  "SBS14",  "SBS15",  "SBS16", "SBS17a", "SBS17b", "SBS18",  "SBS19",  "SBS20", "SBS21" , "SBS22" , "SBS23" , "SBS24", "SBS25", "SBS26", "SBS28",  "SBS29",  "SBS30"  ,"SBS31" , "SBS32",  "SBS33" , "SBS34" , "SBS35",  "SBS36" , "SBS37" , "SBS38" , "SBS39"  ,"SBS40" , "SBS41", 
+ "SBS42" , "SBS44" )
+
+
+
+
+```
+
+
+GR,LR prediction, observation
+
+This generates
+```{r}
+
+APOBEC.BLCA.BRCA.promoter.2kb.twelvemers <- read.table("~/mSig-OLS-Project/APOBEC.BLCA.BRCA.promoter.2kb.twelvemer.txt",header=F,stringsAsFactors = F)
+GenerateNormalizedScoresFromTwelvemers(APOBEC.BLCA.BRCA.promoter.2kb.twelvemers,"~/mSig-QBiC/APOBEC.BLCA.BRCA.667uPBM.QBiC.scores.txt")
+
+
+PlotComparisonPlot <- function(Prediction,Observation,category,title){
+  
+  model <- summary(lm(Observation~Prediction))
+  
+  if(category=="Gain"){
+      plot(Prediction~Observation,pch=20,
+       ylab ="Observed Gain Ratio",xlab="Predicted Gain ratio",main=title,cex=1,cex.lab=1.5,cex.main=1.5)
+      
+  abline(lm(Prediction~Observation),col="red")
+  
+  legend("topleft",legend = paste("R2 = ",format(round(model$adj.r.squared,2),nsmall=2),sep=""),cex =1.5)
+  
+    
+  }else{
+     plot(Prediction~Observation,pch=20,
+       ylab ="Observed Loss Ratio",xlab="Predicted Loss ratio",main=title,cex=1,cex.lab=1.5,cex.main=1.5)
+      
+  abline(lm(Prediction~Observation),col="red")
+  
+  legend("topleft",legend = paste("R2 = ",format(round(model$adj.r.squared,2),nsmall=2),sep=""),cex =1.5)
+  
+    
+  }
+  
+
+
+  
+}
+
+
+SBS2.C.T.only.matrix <- data.frame(matrix(nrow=667,ncol=2))
+colnames(SBS2.C.T.only.matrix) <- c("GR","LR")
+
+SBS2.C.T.only.matrix[,1] <- SBS7a.C.Tonly.spectrum.GR
+SBS2.C.T.only.matrix[,2] <- SBS7a.C.Tonly.spectrum.LR
+
+write.table(SBS2.C.T.only.matrix,"~/new.SBS.sample.twelvemers/SBS7a.C.T.only.GR.LR.txt",sep="\t",col.names=T,row.names=F,quote=F)
+
+pdf("~/comparison.between.prediction.PCAWG.new.pdf",width=12,height=20)
+
+par(mgp=c(2,0.5,0),mar=c(5,4,4,2),mfrow=c(6,4))
+
+for(signature in c("SBS2.C.T.only","SBS4","SBS7a.C.T.only","SBS10a","SBS13.CAT.only","SBS17b.T.G.only","SBS22.T.A.only")){
+  
+  if(signature == "SBS10a"){
+    
+    PlotComparisonPlot(only.C.A.SBS10a.new.GR,only.C.A.observed.tumors.new.GR,"Gain",signature)
+    
+    PlotComparisonPlot(only.C.A.SBS10a.new.LR,only.C.A.observed.tumors.new.LR,"Gain",signature)    
+    
+  }else{
+    
+  GR.LR.matrix <- read.table(paste("~/new.SBS.sample.twelvemers/",signature,".GR.LR.txt",sep=""), sep="\t",header=T,stringsAsFactors = F)
+  
+  signature <- unlist(strsplit(signature,"[.]"))[1]
+  
+  prediction.matrix <- get(paste("PCAWG.",signature,".genome.mean.ratio.matrix",sep=""))
+  
+  PlotComparisonPlot(prediction.matrix$right.mean,GR.LR.matrix$GR,"Gain",signature)
+  
+  PlotComparisonPlot(prediction.matrix$left.mean,GR.LR.matrix$LR,"Loss",signature)
+  }
+  
+  
+  
+  
+  
+  
+}
+dev.off()
+```
+
+
+Overview of TF
+
+I used Signature-QBiC to generate GRs and LRs for all PBMs with all unartifact signatures. Format is PBM - GR - LR.
+
+```{r}
+
+TF.median.GRs <- data.frame(TF.uPBM.info$Gene)
+TF.median.LRs <- data.frame(TF.uPBM.info$Gene)
+
+
+for(i in 1:nrow(TF.uPBM.info)){
+  
+  TF.uPBMs <- unlist(strsplit(TF.uPBM.info$PBMs[i],";"))
+  
+  for(signature in unartifact.signatures){
+    
+    
+    output.name.genome <- paste("PCAWG.",signature,".genome.mean.ratio.matrix",sep="")
+    
+    matrix.genome <- get(output.name.genome)
+    
+
+    TF.median.GRs[i,signature] <- median(matrix.genome$LR[which(matrix.genome$uPBM %in% TF.uPBMs)])
+    TF.median.LRs[i,signature] <- median( matrix.genome$GR[which(matrix.genome$uPBM %in% TF.uPBMs)])
+    
+    
+  }
+  
+}
+
+
+
+data1 <- as.matrix(TF.median.LRs[,-1]) ##LRs, the first column is TF name
+data2 <- as.matrix(TF.median.GRs[,-1]) ##GRs
+
+row.names(data1) <- TF.uPBM.info$Gene
+row.names(data2) <- TF.uPBM.info$Gene
+
+data <- t(as.matrix(rbind(-data1,data2)))
+
+
+col = c("#081D58", "#253494","#225EA8","#1D91C0","#41B6C4","#A1DAB4","#FFFFCC","#FFFFCC","#FED976","#FEB24C","#FD8D3C","#FC4E2A","#E31A1C","#800026"),
+##heatmap in Figure 3
+hm <- heatmap.2(data,trace="none",col = c("#081D58", "#253494","#225EA8","#1D91C0","#41B6C4","#FFFFCC","#FFFFCC","#FEB24C","#FD8D3C","#FC4E2A","#E31A1C","#800026"),
+            hclustfun = function(x) hclust(x,method = "complete"),
+            hline =TRUE,vline=TRUE,symkey=F,breaks=c(-3.5,-3,-2.5,-2,-1.5,-1,0,1,1.5,2,2.5,3,3.5),
+            dendrogram = "both",
+            labCol = NA,
+            tracecol = "red",
+            lhei=c(0.5,4), lwid=c(0.2,3.5), keysize=0.75, key.par = list(cex=0.5))  }
+
+
+TF.gain.loss.binding.number <- data.frame(unartifact.signatures) #count number of TFs with GR or LR >1
+
+for(signature in unartifact.signatures){
+  
+  TF.gain.loss.binding.number$gain.TF.numbers[which(TF.gain.loss.binding.number[,1]==signature)] <- length(unique(TF.median.GRs$Gene[TF.median.GRs[,signature]>1]))
+  
+  TF.gain.loss.binding.number$loss.TF.numbers[which(TF.gain.loss.binding.number[,1]==signature)] <- length(unique(TF.median.LRs$Gene[TF.median.LRs[,signature]>1]))
+  
+  
+}
+
+plot.signature.TF.summary <- data.frame(c(TF.gain.loss.binding.number$gain.TF.numbers,
+                                          TF.gain.loss.binding.number$loss.TF.numbers))
+
+plot.signature.TF.summary$signature <- c(unartifact.signatures,unartifact.signatures)
+
+plot.signature.TF.summary$category <- rep(c("TFs gaining binding affinity", "TFs abrogating binding affinity"),each=47)
+
+colnames(plot.signature.TF.summary)[1] <- "TF.numbers"
+
+plot.signature.TF.summary.gain <- plot.signature.TF.summary[1:47,]
+
+plot.signature.TF.summary.gain <- plot.signature.TF.summary.gain[order(plot.signature.TF.summary.gain$TF.numbers,decreasing=T),]
+
+##barplot in Figure 3
+
+ggplot(data=plot.signature.TF.summary.gain, aes(x=signature, y=TF.numbers, fill=category)) +
+  geom_bar(stat="identity")+
+  scale_fill_manual("legend", values = c("TFs gaining binding affinity" = "#FC4E2A", "TFs abrogating binding affinity" = "#1D91C0"))+
+  theme_bw()+theme(text = element_text(size=20),
+                   axis.text.x = element_text(angle=90, hjust=1))   +scale_x_discrete(limits=plot.signature.TF.summary.gain$signature)+ theme(legend.position = "none")
+
+
+plot.signature.TF.summary.loss <- plot.signature.TF.summary[48:94,]
+plot.signature.TF.summary.loss <- plot.signature.TF.summary.loss[order(plot.signature.TF.summary.loss$TF.numbers,decreasing=T),]
+
+
+ggplot(data=plot.signature.TF.summary.loss, aes(x=signature, y=TF.numbers, fill=category)) +
+  geom_bar(stat="identity")+
+  scale_fill_manual("legend", values = c("TFs gaining binding affinity" = "#FC4E2A", "TFs abrogating binding affinity" = "#1D91C0"))+
+  theme_bw()+theme(text = element_text(size=20),
+                   axis.text.x = element_text(angle=90, hjust=1))   +scale_x_discrete(limits=plot.signature.TF.summary.loss$signature)+ theme(legend.position = "none")
+dev.off()
+
+
+
+
+##TF.DBD in each cluster Figure 3
+cluster.matrix <- cutree(as.hclust(hm$colDendrogram), 1:1164)
+
+cluster.matrix.raw <- cluster.matrix
+
+cluster.matrix <- cluster.matrix.raw
+
+
+cluster.A.TF <- names(cluster.matrix[cluster.matrix[,4]==2,4])
+cluster.B.TF <- names(cluster.matrix[cluster.matrix[,4]==1,4])
+cluster.C.TF <- names(cluster.matrix[cluster.matrix[,4]==4,4])
+cluster.D.TF <- names(cluster.matrix[cluster.matrix[,4]==3,4])
+
+
+cluster.A.TF <- data.frame(cluster.A.TF)
+
+cluster.A.TF$cluster <- "A"
+
+cluster.A.TF$TF.family <- TF.uPBM.info$DBD[match(cluster.A.TF[,1],TF.uPBM.info$Gene)]
+
+cluster.B.TF <- data.frame(cluster.B.TF)
+
+cluster.B.TF$cluster <- "B"
+
+cluster.B.TF$TF.family <- TF.uPBM.info$DBD[match(cluster.B.TF[,1],TF.uPBM.info$Gene)]
+
+
+cluster.C.TF <- data.frame(cluster.C.TF)
+
+cluster.C.TF$cluster <- "C"
+
+cluster.C.TF$TF.family <- TF.uPBM.info$DBD[match(cluster.C.TF[,1],TF.uPBM.info$Gene)]
+cluster.D.TF <- data.frame(cluster.D.TF)
+
+cluster.D.TF$cluster <- "D"
+
+cluster.D.TF$TF.family <- TF.uPBM.info$DBD[match(cluster.D.TF[,1],TF.uPBM.info$Gene)]
+
+
+cluster.composition.summary <- data.frame(matrix(nrow=0,ncol=4))
+
+for(cluster.name in c("cluster.A.TF","cluster.B.TF","cluster.C.TF",
+                      "cluster.D.TF")){
+  
+  cluster <- get(cluster.name)
+  
+  colnames(cluster)[1] <- "TFname"
+  
+  cluster <- cluster[!duplicated(cluster$TFname),]
+  
+  cluster.composition.matrix <- data.frame(table(cluster$TF.family))
+  
+  
+  
+  cluster.composition.matrix$cluster <- cluster.name
+  
+  cluster.composition.matrix$percentage <- cluster.composition.matrix$Freq/sum(cluster.composition.matrix$Freq)
+  
+  cluster.composition.summary <- rbind(cluster.composition.summary,cluster.composition.matrix)
+  
+  
+  
+  
+  
+}
+
+
+
+
+
+color.pattern = c("#FFFF33","#E5D8BD","#FB9A99","#FBB4AE","#D95F02","#B15928","#FFFF99","#4DAF4A","#E31A1C","#8DA0CB","#BC80BD","#A65628","#F0027F","#FFED6F","#FFFF99","#E7298A","#666666","#FDCDAC","#FED9A6","#FDC086","#FF7F00","#CCEBC5","#66C2A5","#377EB8","#A6CEE3","#FCCDE5","#66A61E","#FF7F00","#FB8072","#F2F2F2","#7FC97F","#B3B3B3","#F781BF","#E6F5C9","#80B1D3","#386CB0","#999999","#7570B3","#F4CAE4","#E78AC3","#666666","#FC8D62") 
+
+
+ggplot(cluster.composition.summary,aes(x=cluster,y=percentage,fill=Var1))+scale_fill_manual(values = color.pattern)+
+  geom_bar(stat="identity",colour="black") + 
+  theme(axis.text.x = element_text(face="bold", color="#993333",size=8),axis.text.y = element_text(face="bold",size=10),axis.title=element_text(size=10,face="bold"),
+        legend.text=element_text(size=8))+
+  ylab("Percentage")+
+  xlab("Cluster") + scale_x_discrete(limits=c("cluster.A.TF","cluster.B.TF","cluster.C.TF",
+                                              "cluster.D.TF"))
+
+
+
+##supplementary figure
+pdf("~/median.comparison.histogram.try.pdf",width = 8.3, height = 11.7)
+
+plotlist <- list()
+
+for(TF.family in unique(TF.uPBM.info$DBD)){
+  
+  TFs_in_this_family <- TF.uPBM.info$Gene[TF.uPBM.info$DBD == TF.family]
+  
+  all.ratios.melt.dataframe.family <- all.ratios.melt.dataframe[which(as.character(all.ratios.melt.dataframe$Var1) %in% TFs_in_this_family),]
+  
+  
+  
+  p <- ggplot(all.ratios.melt.dataframe.family, aes(value, color = type,fill=type)) + 
+    geom_histogram(alpha = 0.5, aes(y = ..density..), position = 'identity',breaks=seq(0,3.55,0.1)) + ggtitle(TF.family)+coord_cartesian(xlim=c(0,3.55))+ 
+    theme(legend.position = "none",plot.title = element_text(size=10),axis.title.x=element_blank(),axis.title.y=element_blank())
+  plotlist <- rlist::list.append(plotlist,p)
+
+}
+marrangeGrob(plotlist,ncol=6,nrow=7)
+dev.off()
+
+
+##GRLR comparison in Fig3
+gain.ratios <- data.frame(melt(data2))
+loss.ratios <- data.frame(melt(data1))
+
+gain.ratios$type <- "Loss Ratio"
+loss.ratios$type <- "Gain Ratio"
+
+all.ratios <- rbind(gain.ratios,loss.ratios)
+
+test <- wilcox.test(all.ratios$value[which(all.ratios$type=="Gain Ratio")],all.ratios$value[which(all.ratios$type=="Loss Ratio")],paired = T)
+
+ggplot(all.ratios, aes(value, color = type,fill=type)) + 
+  geom_histogram(alpha = 0.5, aes(y = ..density..), position = 'identity',breaks=seq(0,3.55,0.1))+coord_cartesian(xlim=c(0,3.55))
+
+
+dev.off()
+
+```
+
+
+
+```{r}
+dbs <- listEnrichrDbs()
+dbs.selected <- c("Reactome_2016")
+
+for(signature in unartifact.signatures){
+  
+  gain.TF.list <- TF.median.GRs$Gene[TF.median.GRs[,signature]>1]
+  
+  PathwaySelection(gain.TF.list,0.005,"Reactome_2016")
+  
+  loss.TF.list <- TF.uPBM.info.check.left.median$Gene[TF.uPBM.info.check.left.median[,signature]>1]
+  
+  PathwaySelection(loss.TF.list,0.005,"Reactome_2016")
+}
+
+
+
+
+pathways.summary.gain.binding <- data.frame(matrix(nrow=0,ncol=13))
+pathways.summary.loss.binding <- data.frame(matrix(nrow=0,ncol=13))
+
+
+for(signature in unartifact.signatures){
+  
+  
+  
+  
+  outname.enrichr.gain <- paste("filtered.median.enrichR.Reactome.gained.by.",signature,sep="")
+  
+  outname.enrichr.loss <- paste("filtered.median.enrichR.Reactome.lossed.by.",signature,sep="")
+  
+  gain.matrix <- get(outname.enrichr.gain)
+  
+ 
+  
+  loss.matrix <- get(outname.enrichr.loss)
+  
+  
+  
+  if(nrow(gain.matrix)>0){
+    gain.matrix$Signature <- signature
+    colnames(pathways.summary.gain.binding) <- colnames(gain.matrix)
+    
+    pathways.summary.gain.binding <- rbind(pathways.summary.gain.binding,gain.matrix)
+    
+  }
+  
+  if(nrow(loss.matrix)>0){
+    loss.matrix$Signature <- signature
+    colnames(pathways.summary.loss.binding) <- colnames(loss.matrix)
+    
+    pathways.summary.loss.binding <- rbind(pathways.summary.loss.binding,loss.matrix)
+    
+  }
+  
+  
+  
+}
+
+
+
+combined.pathways <- unique(c(pathways.summary.gain.binding$New.Term,pathways.summary.loss.binding$New.Term))
+
+combined.dot.matrix.plot <- data.frame(matrix(nrow=length(combined.pathways),ncol=47))
+
+row.names(combined.dot.matrix.plot) <- combined.pathways
+
+colnames(combined.dot.matrix.plot) <- unartifact.signatures
+
+
+combined.dot.matrix.plot[,] <- 0
+
+for(i in 1:nrow(combined.dot.matrix.plot)){
+  
+  if(length(which(pathways.summary.gain.binding$New.Term==
+                  row.names(combined.dot.matrix.plot)[i]))>0){
+    
+    signature.list <- pathways.summary.gain.binding$Signature[which(pathways.summary.gain.binding$New.Term==
+                                                                      row.names(combined.dot.matrix.plot)[i])]
+    
+    combined.dot.matrix.plot[i,signature.list] <- combined.dot.matrix.plot[i,signature.list] + 1
+    
+  }
+  
+  if(length(which(pathways.summary.loss.binding$New.Term==
+                  row.names(combined.dot.matrix.plot)[i]))>0){
+  
+  signature.list <- pathways.summary.loss.binding$Signature[which(pathways.summary.loss.binding$New.Term==
+                                                                    row.names(combined.dot.matrix.plot)[i])]
+  
+  combined.dot.matrix.plot[i,signature.list] <- combined.dot.matrix.plot[i,signature.list] + 2
+  }
+  
+  
+}
+
+summary.matrix <- data.frame(combined.pathways)
+
+for(i in 1:nrow(summary.matrix)){
+  
+  summary.matrix$freq[i] <- sum(combined.dot.matrix.plot[i,]!=0)
+}
+
+specific.pathway.order <- summary.matrix$combined.pathways[order(summary.matrix$freq,decreasing = T)]
+
+
+plot.dot.matrix <- melt(as.matrix(combined.dot.matrix.plot))
+colnames(plot.dot.matrix) <- c("Pathway","Signature","value")
+
+mycol <- c("grey","tomato1", "dodgerblue", "darkorchid3")
+pdf("~/reactome.2016.ordered.0005.median.combined.pdf",width=30,height=20)
+
+ggplot(plot.dot.matrix, aes(Signature, Pathway,color=value)) +
+  geom_tile(colour = "white",aes(fill = value)) + scale_fill_gradientn(colours = mycol)+
+    coord_equal()+
+  theme(axis.text.x = element_text(face="bold", color="#993333",angle=90,size=15,vjust=10),axis.text.y = element_text(face="bold",size=15),axis.title=element_text(size=10,face="bold"),
+        legend.text=element_text(size=10))+
+  scale_x_discrete(limits=unartifact.signatures,expand = c(0, 0),position = "top") +
+  scale_y_discrete(limits=rev(as.character(specific.pathway.order))[1:45],expand = c(0, 0)) +
+  
+  labs(x = "Signature", y = "Pathways")
+
+ggplot(plot.dot.matrix, aes(Signature, Pathway,color=value)) +
+  geom_tile(colour = "white",aes(fill = value)) + scale_fill_gradientn(colours = mycol)+
+    coord_equal()+
+  theme(axis.text.x = element_text(face="bold", color="#993333",angle=90,size=15,vjust=10),axis.text.y = element_text(face="bold",size=15),axis.title=element_text(size=10,face="bold"),
+        legend.text=element_text(size=10))+
+  scale_x_discrete(limits=unartifact.signatures,expand = c(0, 0),position = "top") +
+  scale_y_discrete(limits=rev(as.character(specific.pathway.order))[46:90],expand = c(0, 0)) +
+  
+  labs(x = "Signature", y = "Pathways")
+
+
+dev.off()
+
+
+
+sum.of.pathways.both <- data.frame(unartifact.signatures)
+sum.of.pathways.gain <- data.frame(unartifact.signatures)
+sum.of.pathways.loss <- data.frame(unartifact.signatures)
+
+
+
+for(i in 1:length(unartifact.signatures)){
+  
+  sum.of.pathways.both$freq[i] <- sum(combined.dot.matrix.plot[,i]==3)
+  sum.of.pathways.loss$freq[i] <- sum(combined.dot.matrix.plot[,i]==2)
+  sum.of.pathways.gain$freq[i] <- sum(combined.dot.matrix.plot[,i]==1)
+  
+}
+
+for(i in 1:nrow(sum.of.pathways.both)){
+  
+  signature <- sum.of.pathways.both$Signature[i]
+  
+  selected.matrix <- PCAWG_sigProfiler_SBS_signatures_in_samples[which(PCAWG_sigProfiler_SBS_signatures_in_samples[,signature]!=0),]
+  
+  sum.of.pathways.both$type.of.cancer[i] <- length(unique(selected.matrix$Cancer.Types))
+}
+
+sum.of.pathways.both$Category <- "Both"
+sum.of.pathways.loss$Category <- "Loss"
+sum.of.pathways.gain$Category <- "Gain"
+
+colnames(sum.of.pathways.both) <- c("Signature","Freq","Category")
+colnames(sum.of.pathways.loss) <- c("Signature","Freq","Category")
+colnames(sum.of.pathways.gain) <- c("Signature","Freq","Category")
+
+sum.of.pathways <- rbind(sum.of.pathways.both,sum.of.pathways.loss,sum.of.pathways.gain)
+
+for(i in 1:nrow(sum.of.pathways)){
+  
+  sum.of.pathways$Sum[i] <- sum(sum.of.pathways$Freq[which(sum.of.pathways$Signature==sum.of.pathways$Signature[i])])
+  
+  
+}
+specific.signature.order <- unique(sum.of.pathways$Signature[order(sum.of.pathways$Sum,decreasing=T)])
+
+
+##Figure 4e
+ggplot(sum.of.pathways,aes(x=Signature,y=Freq,fill=Category))+
+  scale_fill_manual(values = c("darkorchid3","tomato1","dodgerblue"))+
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(face="bold", color="#993333",angle=90,size=8),axis.text.y = element_text(face="bold",size=10),axis.title=element_text(size=10,face="bold"),
+        legend.text=element_text(size=10))+
+  ylab("Frequency")+
+  xlab("Signatures")+
+  scale_x_discrete(limits=specific.signature.order)
+
+##Figure 4a-d
+
+
+Notch1.pathways <- specific.pathway.order[which(grepl("NOTCH",specific.pathway.order))]
+TLR.pathways <- specific.pathway.order[which(grepl("TLR",specific.pathway.order))]
+G0.pathways <- specific.pathway.order[c(which(grepl("G1",specific.pathway.order)),which(grepl("G0",specific.pathway.order)))]
+mito.pathways <- specific.pathway.order[which(grepl("biogenesis",specific.pathway.order))]
+
+selected.pathways <- unique(c(Notch1.pathways,TLR.pathways,G0.pathways,mito.pathways))
+
+selected.pathways <- selected.pathways[-10] ##remove NOTCH2
+
+ggplot(plot.dot.matrix[which(as.character(plot.dot.matrix$Pathway) %in% selected.pathways),], aes(Signature, Pathway,color=value)) +
+  geom_tile(colour = "white",aes(fill = value)) + scale_fill_gradientn(colours =  mycol[1:3])+
+  coord_equal()+
+  theme(axis.text.x = element_text(face="bold", color="#993333",angle=90,size=15,vjust=10),axis.text.y = element_text(face="bold",size=15),axis.title=element_text(size=10,face="bold"),
+        legend.text=element_text(size=10))+
+  scale_x_discrete(limits=selected.signatures,expand = c(0, 0),position = "top") +
+  scale_y_discrete(expand = c(0, 0),limits=selected.pathways) +
+  
+  labs(x = "Signature", y = "Pathways",main="Notch.Pathways")
+
+
+
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
