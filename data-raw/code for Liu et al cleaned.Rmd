@@ -1,0 +1,354 @@
+---
+title: "Code for Liu etal"
+author: "Mo Liu"
+date: "15/05/2020"
+output: html_document
+---
+
+It is difficult to provide everything for the whole pipeline, as some data is downloaded from QBiC website and some data is stored locally. The code is here for reference. 
+Please feel free to email me if you are interested in any part of this study and I would like to provide more details about processing data.
+
+required packages
+```{r}
+library(gplots)
+library(RColorBrewer)
+library(data.table)
+library(enrichR)
+library(ggplot2)
+library(devtools)
+library(stringi)
+library('lsa') # for cosine()
+
+```
+
+
+```{r}
+unartifact.signatures <- c("SBS1",  "SBS2" ,  "SBS3" ,  "SBS4"  , "SBS5" ,"SBS6",   "SBS7a" , "SBS7b",  "SBS7c",  "SBS7d" , "SBS8", "SBS9","SBS10a" ,"SBS10b","SBS11" , "SBS12" , "SBS13",  "SBS14",  "SBS15",  "SBS16", "SBS17a", "SBS17b", "SBS18",  "SBS19",  "SBS20", "SBS21" , "SBS22" , "SBS23" , "SBS24", "SBS25", "SBS26", "SBS28",  "SBS29",  "SBS30"  ,"SBS31" , "SBS32",  "SBS33" , "SBS34" , "SBS35",  "SBS36" , "SBS37" , "SBS38" , "SBS39"  ,"SBS40" , "SBS41", 
+ "SBS42" , "SBS44" )
+
+```
+
+
+Overview of TF
+
+I used Signature-QBiC to generate GRs and LRs for all PBMs with all unartifact signatures. Format is PBM - GR - LR.
+
+```{r}
+#TF.uPBM.info is read from TableS4
+TF.median.GRs <- data.frame(TF.uPBM.info$Gene)
+TF.median.LRs <- data.frame(TF.uPBM.info$Gene)
+
+
+for(i in 1:nrow(TF.uPBM.info)){
+  
+  TF.uPBMs <- unlist(strsplit(TF.uPBM.info$PBMs[i],";"))
+  
+  for(signature in unartifact.signatures){
+    
+    
+    output.name.genome <- paste("PCAWG.",signature,".genome.mean.ratio.matrix",sep="")
+    
+    matrix.genome <- get(output.name.genome)
+    
+
+    TF.median.GRs[i,signature] <- median(matrix.genome$LR[which(matrix.genome$uPBM %in% TF.uPBMs)])
+    TF.median.LRs[i,signature] <- median( matrix.genome$GR[which(matrix.genome$uPBM %in% TF.uPBMs)])
+    
+    
+  }
+  
+}
+
+
+
+all.TF.LRs <- as.matrix(TF.median.LRs[,-1]) ##LRs, the first column is TF name
+all.TF.GRs <- as.matrix(TF.median.GRs[,-1]) ##GRs
+
+row.names(all.TF.LRs) <- TF.uPBM.info$Gene ##data1 and data2 can be found in 
+row.names(all.TF.GRs) <- TF.uPBM.info$Gene
+
+data <- t(as.matrix(rbind(-all.TF.LRs,all.TF.GRs)))
+
+
+col = c("#081D58", "#253494","#225EA8","#1D91C0","#41B6C4","#A1DAB4","#FFFFCC","#FFFFCC","#FED976","#FEB24C","#FD8D3C","#FC4E2A","#E31A1C","#800026")
+##heatmap in Figure 3
+hm <- heatmap.2(data,trace="none",col = c("#081D58", "#253494","#225EA8","#1D91C0","#41B6C4","#FFFFCC","#FFFFCC","#FEB24C","#FD8D3C","#FC4E2A","#E31A1C","#800026"),
+            hclustfun = function(x) hclust(x,method = "complete"),
+            hline =TRUE,vline=TRUE,symkey=F,breaks=c(-3.5,-3,-2.5,-2,-1.5,-1,0,1,1.5,2,2.5,3,3.5),
+            dendrogram = "both",
+            labCol = NA,
+            tracecol = "red",
+            lhei=c(0.5,4), lwid=c(0.2,3.5), keysize=0.75, key.par = list(cex=0.5))  
+
+
+TF.gain.loss.binding.number <- data.frame(unartifact.signatures) #count number of TFs with GR or LR >1
+
+for(signature in unartifact.signatures){
+  
+  TF.gain.loss.binding.number$gain.TF.numbers[which(TF.gain.loss.binding.number[,1]==signature)] <- length(unique(TF.median.GRs$Gene[TF.median.GRs[,signature]>1]))
+  
+  TF.gain.loss.binding.number$loss.TF.numbers[which(TF.gain.loss.binding.number[,1]==signature)] <- length(unique(TF.median.LRs$Gene[TF.median.LRs[,signature]>1]))
+  
+  
+}
+
+plot.signature.TF.summary <- data.frame(c(TF.gain.loss.binding.number$gain.TF.numbers,
+                                          TF.gain.loss.binding.number$loss.TF.numbers))
+
+plot.signature.TF.summary$signature <- c(unartifact.signatures,unartifact.signatures)
+
+plot.signature.TF.summary$category <- rep(c("TFs gaining binding affinity", "TFs abrogating binding affinity"),each=47)
+
+colnames(plot.signature.TF.summary)[1] <- "TF.numbers"
+
+plot.signature.TF.summary.gain <- plot.signature.TF.summary[1:47,]
+
+plot.signature.TF.summary.gain <- plot.signature.TF.summary.gain[order(plot.signature.TF.summary.gain$TF.numbers,decreasing=T),]
+
+##barplot in Figure 3
+
+ggplot(data=plot.signature.TF.summary.gain, aes(x=signature, y=TF.numbers, fill=category)) +
+  geom_bar(stat="identity")+
+  scale_fill_manual("legend", values = c("TFs gaining binding affinity" = "#FC4E2A", "TFs abrogating binding affinity" = "#1D91C0"))+
+  theme_bw()+theme(text = element_text(size=20),
+                   axis.text.x = element_text(angle=90, hjust=1))   +scale_x_discrete(limits=plot.signature.TF.summary.gain$signature)+ theme(legend.position = "none")
+
+
+plot.signature.TF.summary.loss <- plot.signature.TF.summary[48:94,]
+plot.signature.TF.summary.loss <- plot.signature.TF.summary.loss[order(plot.signature.TF.summary.loss$TF.numbers,decreasing=T),]
+
+
+ggplot(data=plot.signature.TF.summary.loss, aes(x=signature, y=TF.numbers, fill=category)) +
+  geom_bar(stat="identity")+
+  scale_fill_manual("legend", values = c("TFs gaining binding affinity" = "#FC4E2A", "TFs abrogating binding affinity" = "#1D91C0"))+
+  theme_bw()+theme(text = element_text(size=20),
+                   axis.text.x = element_text(angle=90, hjust=1))   +scale_x_discrete(limits=plot.signature.TF.summary.loss$signature)+ theme(legend.position = "none")
+dev.off()
+```
+
+##TF.DBD in each cluster Figure 3
+
+```{r}
+hc.cutree.for.TF.clustering <- cutree(as.hclust(hm$colDendrogram), 1:1164)
+
+cluster.A.TF <- names(hc.cutree.for.TF.clustering[hc.cutree.for.TF.clustering[,4]==2,4])
+cluster.B.TF <- names(hc.cutree.for.TF.clustering[hc.cutree.for.TF.clustering[,4]==1,4])
+cluster.C.TF <- names(hc.cutree.for.TF.clustering[hc.cutree.for.TF.clustering[,4]==4,4])
+cluster.D.TF <- names(hc.cutree.for.TF.clustering[hc.cutree.for.TF.clustering[,4]==3,4])
+
+
+cluster.A.TF <- data.frame(cluster.A.TF)
+
+cluster.A.TF$cluster <- "A"
+
+cluster.A.TF$TF.family <- TF.uPBM.info$DBD[match(cluster.A.TF[,1],TF.uPBM.info$Gene)]
+
+cluster.B.TF <- data.frame(cluster.B.TF)
+
+cluster.B.TF$cluster <- "B"
+
+cluster.B.TF$TF.family <- TF.uPBM.info$DBD[match(cluster.B.TF[,1],TF.uPBM.info$Gene)]
+
+
+cluster.C.TF <- data.frame(cluster.C.TF)
+
+cluster.C.TF$cluster <- "C"
+
+cluster.C.TF$TF.family <- TF.uPBM.info$DBD[match(cluster.C.TF[,1],TF.uPBM.info$Gene)]
+cluster.D.TF <- data.frame(cluster.D.TF)
+
+cluster.D.TF$cluster <- "D"
+
+cluster.D.TF$TF.family <- TF.uPBM.info$DBD[match(cluster.D.TF[,1],TF.uPBM.info$Gene)]
+
+##organize all clustering information together
+cluster.composition.summary <- data.frame(matrix(nrow=0,ncol=4))
+
+for(cluster.name in c("cluster.A.TF","cluster.B.TF","cluster.C.TF",
+                      "cluster.D.TF")){
+  
+  cluster <- get(cluster.name)
+  
+  colnames(cluster)[1] <- "TFname"
+  
+  cluster <- cluster[!duplicated(cluster$TFname),]
+  
+  cluster.composition.matrix <- data.frame(table(cluster$TF.family))
+  
+  
+  
+  cluster.composition.matrix$cluster <- cluster.name
+  
+  cluster.composition.matrix$percentage <- cluster.composition.matrix$Freq/sum(cluster.composition.matrix$Freq)
+  
+  cluster.composition.summary <- rbind(cluster.composition.summary,cluster.composition.matrix)
+  
+  
+}
+
+```
+
+
+
+```{r}
+dbs <- listEnrichrDbs()
+dbs.selected <- c("Reactome_2016")
+
+for(signature in unartifact.signatures){
+  
+  gain.TF.list <- TF.median.GRs$Gene[TF.median.GRs[,signature]>1] ##selected TFs with GR>1
+  
+  PathwaySelection(gain.TF.list,0.005,"Reactome_2016")
+  
+  loss.TF.list <- TF.median.LRs$Gene[TF.median.LRs[,signature]>1] ##selected TFs with LR>1
+  
+  PathwaySelection(loss.TF.list,0.005,"Reactome_2016")
+}
+
+
+
+
+pathways.summary.gain.binding <- data.frame(matrix(nrow=0,ncol=13))
+pathways.summary.loss.binding <- data.frame(matrix(nrow=0,ncol=13))
+
+
+for(signature in unartifact.signatures){
+  
+  
+  
+  
+  outname.enrichr.gain <- paste("filtered.median.enrichR.Reactome.gained.by.",signature,sep="")
+  
+  outname.enrichr.loss <- paste("filtered.median.enrichR.Reactome.lossed.by.",signature,sep="")
+  
+  gain.matrix <- get(outname.enrichr.gain)
+  
+ 
+  
+  loss.matrix <- get(outname.enrichr.loss)
+  
+  
+  
+  if(nrow(gain.matrix)>0){
+    gain.matrix$Signature <- signature
+    colnames(pathways.summary.gain.binding) <- colnames(gain.matrix)
+    
+    pathways.summary.gain.binding <- rbind(pathways.summary.gain.binding,gain.matrix)
+    
+  }
+  
+  if(nrow(loss.matrix)>0){
+    loss.matrix$Signature <- signature
+    colnames(pathways.summary.loss.binding) <- colnames(loss.matrix)
+    
+    pathways.summary.loss.binding <- rbind(pathways.summary.loss.binding,loss.matrix)
+    
+  }
+  
+  
+  
+}
+
+
+
+combined.pathways <- unique(c(pathways.summary.gain.binding$New.Term,pathways.summary.loss.binding$New.Term))
+
+combined.dot.matrix.plot <- data.frame(matrix(nrow=length(combined.pathways),ncol=47))
+
+row.names(combined.dot.matrix.plot) <- combined.pathways
+
+colnames(combined.dot.matrix.plot) <- unartifact.signatures
+
+
+combined.dot.matrix.plot[,] <- 0
+
+for(i in 1:nrow(combined.dot.matrix.plot)){
+  
+  if(length(which(pathways.summary.gain.binding$New.Term==
+                  row.names(combined.dot.matrix.plot)[i]))>0){
+    
+    signature.list <- pathways.summary.gain.binding$Signature[which(pathways.summary.gain.binding$New.Term==
+                                                                      row.names(combined.dot.matrix.plot)[i])]
+    
+    combined.dot.matrix.plot[i,signature.list] <- combined.dot.matrix.plot[i,signature.list] + 1
+    
+  }
+  
+  if(length(which(pathways.summary.loss.binding$New.Term==
+                  row.names(combined.dot.matrix.plot)[i]))>0){
+  
+  signature.list <- pathways.summary.loss.binding$Signature[which(pathways.summary.loss.binding$New.Term==
+                                                                    row.names(combined.dot.matrix.plot)[i])]
+  
+  combined.dot.matrix.plot[i,signature.list] <- combined.dot.matrix.plot[i,signature.list] + 2
+  }
+  
+  
+}
+
+summary.matrix <- data.frame(combined.pathways)
+
+for(i in 1:nrow(summary.matrix)){
+  
+  summary.matrix$freq[i] <- sum(combined.dot.matrix.plot[i,]!=0)
+}
+
+specific.pathway.order <- summary.matrix$combined.pathways[order(summary.matrix$freq,decreasing = T)]
+
+
+plot.dot.matrix <- melt(as.matrix(combined.dot.matrix.plot))
+colnames(plot.dot.matrix) <- c("Pathway","Signature","value")
+
+mycol <- c("grey","tomato1", "dodgerblue", "darkorchid3")
+
+
+
+
+sum.of.pathways.both <- data.frame(unartifact.signatures)
+sum.of.pathways.gain <- data.frame(unartifact.signatures)
+sum.of.pathways.loss <- data.frame(unartifact.signatures)
+
+
+
+for(i in 1:length(unartifact.signatures)){
+  
+  sum.of.pathways.both$freq[i] <- sum(combined.dot.matrix.plot[,i]==3)
+  sum.of.pathways.loss$freq[i] <- sum(combined.dot.matrix.plot[,i]==2)
+  sum.of.pathways.gain$freq[i] <- sum(combined.dot.matrix.plot[,i]==1)
+  
+}
+
+for(i in 1:nrow(sum.of.pathways.both)){
+  
+  signature <- sum.of.pathways.both$Signature[i]
+  
+  selected.matrix <- PCAWG_sigProfiler_SBS_signatures_in_samples[which(PCAWG_sigProfiler_SBS_signatures_in_samples[,signature]!=0),]
+  
+  sum.of.pathways.both$type.of.cancer[i] <- length(unique(selected.matrix$Cancer.Types))
+}
+
+sum.of.pathways.both$Category <- "Both"
+sum.of.pathways.loss$Category <- "Loss"
+sum.of.pathways.gain$Category <- "Gain"
+
+colnames(sum.of.pathways.both) <- c("Signature","Freq","Category")
+colnames(sum.of.pathways.loss) <- c("Signature","Freq","Category")
+colnames(sum.of.pathways.gain) <- c("Signature","Freq","Category")
+
+sum.of.pathways <- rbind(sum.of.pathways.both,sum.of.pathways.loss,sum.of.pathways.gain)
+
+for(i in 1:nrow(sum.of.pathways)){
+  
+  sum.of.pathways$Sum[i] <- sum(sum.of.pathways$Freq[which(sum.of.pathways$Signature==sum.of.pathways$Signature[i])])
+  
+  
+}
+specific.signature.order <- unique(sum.of.pathways$Signature[order(sum.of.pathways$Sum,decreasing=T)])
+
+
+
+
+
+```
+
+

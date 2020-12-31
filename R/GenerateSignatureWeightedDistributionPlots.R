@@ -10,19 +10,20 @@
 #'
 #'@export
 #'
-GenerateSignatureWeightedDistributionPlots <- function(uPBM_QBiC_scores, spectrum,
+GenerateSignatureWeightedDistributionPlots <- function(uPBM_QBiC_scores, mutation.spectrum,
                                                        output_name) {
 
   uPBM_QBiC_scores <- data.frame(uPBM_QBiC_scores)
+  colnames(uPBM_QBiC_scores) <- "z_score"
   uPBM_QBiC_scores <- uPBM_QBiC_scores$z_score[which(!is.na(uPBM_QBiC_scores$z_score))]
   PBM.scores <- data.frame(uPBM_QBiC_scores)
 
+  PBM.scores$uPBM_QBiC_scores[PBM.scores$uPBM_QBiC_scores>20] <-20
+  PBM.scores$uPBM_QBiC_scores[PBM.scores$uPBM_QBiC_scores<(-20)] <-(-20)
   row.names(PBM.scores) <- all.possible.twelvemers$seq
-  PBM.scores$mutclass <- all.possible.twelvemers$mutclass
+  PBM.scores$mutclass <- all.possible.twelvemers$final_signature
   number <- as.integer(max(PBM.scores[, 1])) + 2
   densities.weighted <- 0
-
-  mutation.spectrum <- check.spectrum(spectrum)
 
   pdf(output_name, width = 16, height = 32)
   par(mfrow = c(8, 4))
@@ -40,7 +41,6 @@ GenerateSignatureWeightedDistributionPlots <- function(uPBM_QBiC_scores, spectru
   histogram_plot <- hist(PBM.scores[, 1], breaks = seq(-number, number,
                                                        0.5), plot = F)
 
-  ylimits <- max(c(histogram_plot$density, densities.weighted)) + 0.05
   plot(histogram_plot, col = "black", freq = F, ylim = c(0, ylimits))
   histogram_plot$density <- densities.weighted
   plot(histogram_plot, col = "grey", freq = F, ylim = c(0, ylimits))
