@@ -133,7 +133,8 @@ SignatureQBiC <- function(QBiC_scores_matrix,sig, max.score, plot.path = NULL) {
       TruncatedHist(QBiC_scores_matrix$scores,
                     original.scores = tmp.scores, 
                     weighted.prop = sig[mutation.type, ],
-     
+                    mutation.type=mutation.type)
+      # dev.off()
     }
     
     summary <- rbind(summary, partial.summary)
