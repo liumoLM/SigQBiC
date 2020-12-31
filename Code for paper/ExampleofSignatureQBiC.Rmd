@@ -156,7 +156,7 @@ SignatureQBiC <- function(QBiC_scores_matrix,sig, max.score, plot.path = NULL) {
 }
 ```
 
-
+Run SignatureQBiC with the input above
 ```{r}
 summaryofscores <- 
   SignatureQBiC(QBiC_scores_matrix,sig, max.score = max.score, "./png.dir") 
@@ -171,7 +171,10 @@ summaryofscores$weighted.freq <-
   summaryofscores$weighted.freq * 
   sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)
 ##Normalize the weighted freqeuencies. After multiplying with signature probability, the weighted frequency is 96 times less than the original frequency. sum(freq) = 96*sum(weighted.freq)
+```
 
+Select $D'_{Pos}$ ($D'_{Neg}$) and $D_{Pos}$ ($D_{Neg}$) to calculate GR and LR
+```{r}
 summaryofscores.Dpos <- 
   summaryofscores[summaryofscores$scores>qvalue.cutoff.score, ] ##Select Dpos 
 
@@ -197,21 +200,4 @@ LR = sum(Dprimeneg)/sum(Dneg)
 
 ```
 
-## Test whether $D'_{Pos}$ ($D'_{Neg}$) are statistically > than $D_{Pos}$ ($D_{Neg}$)
 
-The resampling test generate 1000 flat signatures, to test if the GR or LR>1 is statistically significant.
-
-```{r, eval = FALSE}
-
-ResampleSignature <- function(i){
-  set.seed(i)
-  resampling.of.mut.type <- table(sample(c(1:96),size=nrow(all.possible.twelvemers),replace=T))
-  names(resampling.of.mut.type) <- mut.types
-  resampling.of.mut.type <- resampling.of.mut.type/sum(resampling.of.mut.type)
-  return(resampling.of.mut.type)
-}
-
-# Pseudo signatures based on resampling
-resampled.signature <- parallel::mclapply(X=1:100, ResampleSignature, mc.cores = 1)
-
-```

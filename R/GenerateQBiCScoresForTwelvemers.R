@@ -1,36 +1,20 @@
-#'@title Generate QBiC scores for all uPBMs for a given list of twelvemers
+#'@title The resampling test generate 1000 flat signatures, to test if the GR or LR>1 is statistically significant.
 #'
-#'@description This function generates QBiC scores for all uPBM experiments for given twelvemers
+#'@description This function tests whether $D'_{Pos}$ ($D'_{Neg}$) are statistically > than $D_{Pos}$ ($D_{Neg}$)
 #'
-#'@param twelvemers A list of twelvemers, with a 11mer centered at the mutation base and 1 mutated base appended
+#'@param i Seednumber
 #'
-#'@param uPBM_QBiC_scores All QBiC scores for a universal PBM
-#'
-#'@return A list of scores for the given twelvemers list
+#'@return A list of frequencies of each mutation type with sum to 1
 #'
 #'@export
 #'
-GenerateQBiCScoresForTwelvemers <- function(uPBM_QBiC_scores, twelvemers) {
-  twelvemers <- data.frame(twelvemers)
-  seq_NA <- data.frame(setdiff(twelvemers[, 1], all.possible.twelvemers$seq))  ##select 12mers without mutation
-  seq_mut <- data.frame(setdiff(twelvemers[, 1], seq_NA[, 1]))
-  colnames(seq_NA) <- "seq"
-  colnames(seq_mut) <- "seq"
-  seq_mut[, 1] <- as.character(seq_mut[, 1])
-  seq_scores <- seq_mut
+##
 
-
-  uPBM_QBiC_scores <- data.frame(uPBM_QBiC_scores)
-  uPBM_QBiC_scores <- uPBM_QBiC_scores$z_score[which(!is.na(uPBM_QBiC_scores$z_score))]
-
-
-  seq_scores[, 2] <- uPBM_QBiC_scores[match(seq_mut$seq, all.possible.twelvemers$seq)]
-  if (dim(seq_NA)[1] > 0) {
-    seq_NA[, 2] <- "NA"
-    seq_scores <- rbind(seq_scores, seq_NA)
-  }
-
-  colnames(seq_scores) <- c("seq", "QBiC.scores")
-
-  return(seq_scores)
+ResampleMutationFrequency <- function(i){
+  set.seed(i)
+  resampling.of.mut.type <- table(sample(c(1:96),size=nrow(all.possible.twelvemers),replace=T))
+  names(resampling.of.mut.type) <- mut.types
+  resampling.of.mut.type <- resampling.of.mut.type/sum(resampling.of.mut.type)
+  return(resampling.of.mut.type)
 }
+
