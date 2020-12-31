@@ -9,22 +9,21 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Example of Signature-QBiC for HOXD13 and mutational signature SBS7a
 
-This Markdown document provides the Signature-QBiC analysis for an example PBM HOXD13 and an example signature SBS7a (Figure 1b in paper).
+This is the example shown in Figure 1b of Liu et al., Mutational Processes in 
+Cancer Preferentially Affect Binding of Particular Transcription Factors.
 
-load required libraries
+## Load libraries
 
-```{r}
+```{r libs}
 library(PCAWG7)
 library(tibble)
 ```
-The QBiC scores table and p value table can be downloaded from http://qbic.genome.duke.edu/downloads, 'prediction_3.zip'
+The QBiC scores table and p value table can be downloaded
+from http://qbic.genome.duke.edu/downloads, 'prediction_3.zip'
 
-```{r cars}
-###########
-###input###
-###########
+```{r inputs}
 
 PCAWG_subs_signature <- PCAWG7::signature$genome$SBS96
 
@@ -40,67 +39,72 @@ mut.types <- row.names(PCAWG_subs_signature) <- unlist(mut.types)
 signature <- "SBS7a" ##we used SBS7a as an example
 sig <- PCAWG_subs_signature[ , signature, drop = FALSE]
 
-library(tibble)
-setwd("./data-raw")
-
-QBiC_scores_table <- read.table("../data-raw/prediction6mer.Homo_sapiens|M01252_1.94d|Barrera2016|HOXD13_I322L_R1.txt",sep=" ",header=T,stringsAsFactors = F)
-##This give a two columen data frame: diff and z_score
-# The table contains NA for non-mutations, e.g AAAAAAAAAAA -> AAAAAAAAAAA
-
 all.possible.twelvemers <- 
-  tibble::tibble(readRDS("../data-raw/all.possible.twelvemers.rds")) ##all mutations based on 11mers
+  tibble(readRDS("../data-raw/all.possible.twelvemers.rds")) ##all mutations based on 11mers
 
-QBiC_scores_matrix <- tibble(QBiC_mut = all.possible.twelvemers$seq, 
-                             mut_type = all.possible.twelvemers$final_signature, 
-                             scores   = QBiC_scores_table$z_score[!is.na(QBiC_scores_table$z_score)])
+QBiC_scores_table <- 
+  data.table::fread(
+    "../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz",
+    sep=" ", header=T, stringsAsFactors = F, fill = T)
+# This gives a data frame with colums diff and z_score
+# QBiC_scores_table contains NA for non-mutations, e.g AAAAAAAAAAA -> AAAAAAAAAAA
 
-
-
-pvalue <- scan("../data-raw/pval6mer.Homo_sapiens|M01252_1.94d|Barrera2016|HOXD13_I322L_R1.csv")
-
-# The P values contain NA for non-mutations, e.g AAAAAAAAAAA -> AAAAAAAAAAA
+pvalue <- 
+  scan("../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz")
+# pvalue also contains NA for non-mutations
 pvalue <- pvalue[!is.na(pvalue)]
 
-QBiC_scores_matrix$p <- pvalue
-QBiC_scores_matrix$q <- p.adjust(pvalue, method = "BH") ##adjust pvalue by BH FDR
+QBiC_scores_matrix <- 
+  tibble(QBiC_mut = all.possible.twelvemers$seq, 
+         mut_type = all.possible.twelvemers$final_signature, 
+         scores   = QBiC_scores_table$z_score[!is.na(QBiC_scores_table$z_score)],
+         p        = pvalue,
+         q        = p.adjust(pvalue, method = "BH"))
 
-
-
-
+max.score <- as.integer(max(QBiC_scores_matrix$scores)) + 2
+  # Guaranteed that the QBiC scores' distribution will be symmetric
 ```
-Plotting function for Figure1
+
+### Plotting function for Figure1
+
 ```{r}
 TruncatedHist <- function(all.QBiC.scores,original.scores,weighted.prop,mutation.type){
   cut_off <- quantile(all.QBiC.scores,seq(0,1,0.001))[1000] ##pile the 1% tail up
   original.scores[original.scores>cut_off] <- cut_off
   original.scores[original.scores<(-cut_off)] <- (-cut_off)
-  weighted.hist <- original.hist <- hist(original.scores, breaks = seq(-number,number,0.001), plot=F)
+  weighted.hist <- original.hist <- hist(original.scores, breaks = seq(-max.score,max.score,0.001), plot=F)
   weighted.hist$density <-  weighted.hist$density*weighted.prop
   plot(original.hist,freq = F,ylim=c(0,max(original.hist$density)+0.05),main=paste0("Original ",mutation.type))
   plot(weighted.hist,freq=F,ylim = c(0,max(original.hist$density)+0.05),main=paste0("Weighted ",mutation.type))
-  
-  
 }
 ```
 
 
-####################
-###Signature-QBiC###
-####################
+## The Signature-QBiC function
 
-```{r cars}
-#if plot.path provided, the 
-SignatureQBiC <- function(QBiC_scores_matrix,sig,plot.path = NULL) {
-  
-  number <- as.integer(max(QBiC_scores_matrix$scores)) + 2
-  # Guaranteed that the QBiC scores' distribution will be symmetric
+```{r}
+
+SignatureQBiC <- function(QBiC_scores_matrix,sig, max.score, plot.path = NULL) {
   
   summary <-data.frame(matrix(ncol=5,nrow=0))
+  my.breaks <- seq(-max.score,max.score,0.001)
   
   if(!is.null(plot.path)){
-    pdf(plot.path,paper = "a4")
-    par(mfrow = c(8, 4))
-    all.weighted.freq <- 0 
+    all.weighted.freq <- 0
+    if (!dir.exists(plot.path)) {
+      if (!dir.create(plot.path, recursive = T))
+        stop("Cannot create plotting directory ", plot.path)
+    }
+    
+    png(filename = paste0(plot.path, "/", "hist%03d.png"))
+    par(mar = c(3,1,1,1))
+    par(mfrow = c(8,4))
+    
+    # open.plot <- function(file.name.prefix) {
+    #  png(paste0(plot.path, "/", file.name.prefix, ".png"))
+    #  par(mar = c(3,1,1,1))
+    #  par(mfrow = c(8,4))
+    # }
   }
   
   for (mutation.type in mut.types) { 
@@ -110,7 +114,7 @@ SignatureQBiC <- function(QBiC_scores_matrix,sig,plot.path = NULL) {
     tmp.scores <- 
       QBiC_scores_matrix$scores[QBiC_scores_matrix$mut_type==mutation.type] ##the scores were put into bins
     
-    dist.hist <- hist(tmp.scores, breaks = seq(-number,number,0.001), plot=F)
+    dist.hist <- hist(tmp.scores, breaks = my.breaks, plot=F)
     w.dist.hist <- dist.hist
     w.dist.hist$counts <- dist.hist$counts * sig[mutation.type, ]
     
@@ -119,12 +123,17 @@ SignatureQBiC <- function(QBiC_scores_matrix,sig,plot.path = NULL) {
                  frequency      = dist.hist$counts,
                  mut_type       = mutation.type,
                  signature_freq = sig[mutation.type, ],
-                 weighted.freq  = dist.hist$counts * sig[mutation.type, ]) ##multiply the counts of each bin by the frequency of mutations in a signature
+                 weighted.freq  = dist.hist$counts * sig[mutation.type, ])
+    ##multiply the counts of each bin by the frequency of mutations in a signature
     
     if(!is.null(plot.path)){
+      # Plot ...
       all.weighted.freq <- all.weighted.freq + dist.hist$counts * sig[mutation.type, ]
-      TruncatedHist(QBiC_scores_matrix$scores, original.scores = tmp.scores, weighted.prop = sig[mutation.type, ],mutation.type=mutation.type)
-      
+      # open.plot(mutation.type)
+      TruncatedHist(QBiC_scores_matrix$scores,
+                    original.scores = tmp.scores, 
+                    weighted.prop = sig[mutation.type, ],
+     
     }
     
     summary <- rbind(summary, partial.summary)
@@ -134,8 +143,9 @@ SignatureQBiC <- function(QBiC_scores_matrix,sig,plot.path = NULL) {
     cut_off <- quantile( all.scores,seq(0,1,0.001))[1000] ##pile the 1% tail up
     all.scores[all.scores>cut_off] <- cut_off
     all.scores[all.scores<(-cut_off)] <- (-cut_off)
-    weighted.hist <- original.hist <- hist(all.scores, breaks = seq(-number,number,0.001), plot=F)
+    weighted.hist <- original.hist <- hist(all.scores, breaks = my.breaks, plot=F)
     weighted.hist$density <-  all.weighted.freq
+    # open.plot("summary")
     plot(original.hist,freq = F,ylim=c(0,max(original.hist$density)+0.05),main = "Original Distribution")
     plot(weighted.hist,freq=F,ylim = c(0,max(original.hist$density)+0.05),main = "Weighted Distribution")
     dev.off()
@@ -146,8 +156,9 @@ SignatureQBiC <- function(QBiC_scores_matrix,sig,plot.path = NULL) {
 ```
 
 
-```{r cars}
-summaryofscores <- SignatureQBiC(QBiC_scores_matrix,sig,"./test.pdf") ##run Signature-QBiC with the HOXD13 QBiC-scores and SBS7a
+```{r}
+summaryofscores <- 
+  SignatureQBiC(QBiC_scores_matrix,sig, max.score = max.score, "./png.dir") 
 
 pos.sig.QBiC_scores_matrix <- 
   QBiC_scores_matrix[QBiC_scores_matrix$q < 0.1 & QBiC_scores_matrix$scores>0,] #select Dpos
@@ -182,44 +193,14 @@ Dprimeneg <- rep(summaryofscores.Dneg$scores,
 GR = sum(Dprimepos)/sum(Dpos)
 LR = sum(Dprimeneg)/sum(Dneg)
 
-#### 
-
-### check
-SignatureQBiC_Plot <- function(summaryofscores,plot.path){
-  
-  number <- as.integer(max(summaryofscores$scores)) + 2
-  
-  hist(rep(summaryofscores$scores,summaryofscores$frequency),
-       breaks= seq(-number,number,0.01))
-  histogram_plot <- hist(QBiC_scores_matrix$scores[QBiC_scores_matrix$mut_type == mutation.type], 
-                         breaks = seq(-number, number, 0.01), plot = F)
-  density_temp <- histogram_plot$density * PCAWG_subs_signature[mutation.type, signature]
-  densities.weighted <- densities.weighted + density_temp
-  plot(histogram_plot, main = mutation.type, col = "black", freq = F, ylim = c(0,
-                                                                               ylimits))
-  histogram_plot$density <- density_temp
-  plot(histogram_plot, main = mutation.type, col = "grey", freq = F, ylim = c(0,
-                                                                              ylimits))
-}
-
-
-par(mfrow = c(4, 1))
-TruncatedHist(Dprimepos , main = "Dprimepos")
-TruncatedHist(pos.sig.qq$w.scores, main = "steve dprimepos")
-
-TruncatedHist(Dpos, main = "Drpime")
-TruncatedHist(pos.sig.qq$scores, main = "steve dprime")
-
-
 
 ```
 
-####################
-###resampling test###
-####################
-The resampling test generate 1000 flat signatures, to test if the GR or LR>1 is statistically significant
-```{r}
+## Test whether $D'_{Pos}$ ($D'_{Neg}$) are statistically > than $D_{Pos}$ ($D_{Neg}$)
 
+The resampling test generate 1000 flat signatures, to test if the GR or LR>1 is statistically significant.
+
+```{r, eval = FALSE}
 
 ResampleSignature <- function(i){
   set.seed(i)
@@ -229,56 +210,7 @@ ResampleSignature <- function(i){
   return(resampling.of.mut.type)
 }
 
-resampled.signature <- parallel::mclapply(X=1:1000, ResampleSignature, mc.cores = 10)
+# Pseudo signatures based on resampling
+resampled.signature <- parallel::mclapply(X=1:100, ResampleSignature, mc.cores = 1)
 
 ```
-
-
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-
-GenerateGRLRfromsummary <- function(i){
-  set.seed(i)
-  resampling.of.mut.type <- table(sample(c(1:96),size=nrow(all.possible.twelvemers),replace=T))
-  names(resampling.of.mut.type) <- mut.types
-  resampling.of.mut.type <- resampling.of.mut.type/sum(resampling.of.mut.type)
-  
-  summaryofscores$resample_signature_freq <- resampling.of.mut.type[
-    match(summaryofscores$mut_type,names(resampling.of.mut.type))]
-  summaryofscores$resample_weighted_freq <- summaryofscores$frequency*summaryofscores$resample_signature_freq
-  
-  summaryofscores$resample_weighted_freq <- summaryofscores$resample_weighted_freq*sum(summaryofscores$frequency)/sum(summaryofscores$resample_weighted_freq)
-  
-  summaryofscores.Dpos <- 
-    summaryofscores[summaryofscores$scores>qvalue.cutoff.score, ] ##Select Dpos 
-  
-  Dpos <- rep(summaryofscores.Dpos$scores, 
-              summaryofscores.Dpos$frequency)
-  
-  Dprimepos <- rep(summaryofscores.Dpos$scores, 
-                   round(summaryofscores.Dpos$resample_weighted_freq, digits = 0))
-  
-  
-  summaryofscores.Dneg <- 
-    summaryofscores[summaryofscores$scores<(-qvalue.cutoff.score), ] ##Select Dneg 
-  
-  Dneg <- rep(summaryofscores.Dneg$scores, 
-              summaryofscores.Dneg$frequency)
-  
-  Dprimeneg <- rep(summaryofscores.Dneg$scores, 
-                   round(summaryofscores.Dneg$resample_weighted_freq, digits = 0))
-  
-  return(list(GR=sum(Dprimepos)/sum(Dpos),
-              LR=sum(Dprimeneg)/sum(Dneg)))
-  
-  
-}
-
-
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
