@@ -2,7 +2,7 @@
 
 export(EnrichrPathwayAnalysis)
 export(Generate96ChannelSpectrumFromTwelvemers)
-export(GenerateQBiCScoresForTwelvemers)
-export(GenerateSignatureWeightedDistributionPlots)
 export(MutationTypeContribution)
 export(PyrPenta)
+export(ResampleMutationFrequency)
+import(enrichR)

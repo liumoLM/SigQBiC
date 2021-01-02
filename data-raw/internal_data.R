@@ -58,18 +58,26 @@ output$sum <- apply(output,1,function(x){
 
 
 
-output$mutclass <- apply(output,1,function(x){
+output$final_signature <- apply(output,1,function(x){
 
   if(substring(x["seq"],6,6)=="A"||substring(x["seq"],6,6)=="G"){
 
     x["mutclass"] <- paste(reverseComplement(substring(x["seq"], 5, 7),case="upper"),
                            reverseComplement(substring(x["seq"], 12, 12),case="upper"),
                            sep = "")
+
+    x["mutclass"] <- paste(reverseComplement(substring(x["seq"], 5, 7)),
+                           paste0(reverseComplement(substring(x["seq"], 7, 7)),
+                                  reverseComplement(substring(x["seq"], 12, 12)),
+                                  reverseComplement(substring(x["seq"], 5, 5))),
+                           sep="_")
   }else{
 
     x["mutclass"] <- paste(substring(x["seq"], 5, 7),
-                           substring(x["seq"], 12, 12),
-                           sep="")
+                           paste0(substring(x["seq"], 5, 5),
+                                  substring(x["seq"], 12, 12),
+                                  substring(x["seq"], 7, 7)),
+                           sep="_")
   }
 
   return(x["mutclass"])
@@ -77,27 +85,23 @@ output$mutclass <- apply(output,1,function(x){
 
 all.possible.twelvemers <- output[output$sum==0,c(3,7)]
 
+mut.types <-
+  c("ACA_AAA","ACC_AAC","ACG_AAG","ACT_AAT","CCA_CAA","CCC_CAC","CCG_CAG",
+    "CCT_CAT","GCA_GAA","GCC_GAC","GCG_GAG","GCT_GAT","TCA_TAA","TCC_TAC",
+    "TCG_TAG","TCT_TAT","ACA_AGA","ACC_AGC","ACG_AGG","ACT_AGT","CCA_CGA",
+    "CCC_CGC","CCG_CGG","CCT_CGT","GCA_GGA","GCC_GGC","GCG_GGG","GCT_GGT",
+    "TCA_TGA","TCC_TGC","TCG_TGG","TCT_TGT","ACA_ATA","ACC_ATC","ACG_ATG",
+    "ACT_ATT","CCA_CTA","CCC_CTC","CCG_CTG","CCT_CTT","GCA_GTA","GCC_GTC",
+    "GCG_GTG","GCT_GTT","TCA_TTA","TCC_TTC","TCG_TTG","TCT_TTT","ATA_AAA",
+    "ATC_AAC","ATG_AAG","ATT_AAT","CTA_CAA","CTC_CAC","CTG_CAG","CTT_CAT",
+    "GTA_GAA","GTC_GAC","GTG_GAG","GTT_GAT","TTA_TAA","TTC_TAC","TTG_TAG",
+    "TTT_TAT","ATA_ACA","ATC_ACC","ATG_ACG","ATT_ACT","CTA_CCA","CTC_CCC",
+    "CTG_CCG","CTT_CCT","GTA_GCA","GTC_GCC","GTG_GCG","GTT_GCT","TTA_TCA",
+    "TTC_TCC","TTG_TCG","TTT_TCT","ATA_AGA","ATC_AGC","ATG_AGG","ATT_AGT",
+    "CTA_CGA","CTC_CGC","CTG_CGG","CTT_CGT","GTA_GGA","GTC_GGC","GTG_GGG",
+    "GTT_GGT","TTA_TGA","TTC_TGC","TTG_TGG","TTT_TGT")
 
 
-
-mutation.type.list <-
-  c("ACAA", "ACCA", "ACGA", "ACTA", "CCAA", "CCCA", "CCGA", "CCTA",
-    "GCAA", "GCCA", "GCGA", "GCTA", "TCAA", "TCCA", "TCGA", "TCTA",
-    "ACAG", "ACCG", "ACGG", "ACTG", "CCAG", "CCCG", "CCGG", "CCTG",
-    "GCAG", "GCCG", "GCGG", "GCTG", "TCAG", "TCCG", "TCGG", "TCTG",
-    "ACAT", "ACCT", "ACGT", "ACTT", "CCAT", "CCCT", "CCGT", "CCTT",
-    "GCAT", "GCCT", "GCGT", "GCTT", "TCAT", "TCCT", "TCGT", "TCTT",
-    "ATAA", "ATCA", "ATGA", "ATTA", "CTAA", "CTCA", "CTGA", "CTTA",
-    "GTAA", "GTCA", "GTGA", "GTTA", "TTAA", "TTCA", "TTGA", "TTTA",
-    "ATAC", "ATCC", "ATGC", "ATTC", "CTAC", "CTCC", "CTGC", "CTTC",
-    "GTAC", "GTCC", "GTGC", "GTTC", "TTAC", "TTCC", "TTGC", "TTTC",
-    "ATAG", "ATCG", "ATGG", "ATTG", "CTAG", "CTCG", "CTGG", "CTTG",
-    "GTAG", "GTCG", "GTGG", "GTTG", "TTAG", "TTCG", "TTGG", "TTTG"
-  )
-
-
-
-
-usethis::use_data(all.possible.twelvemers,mutation.type.list,internal=TRUE,overwrite = T)
+usethis::use_data(all.possible.twelvemers,mut.types,internal=TRUE,overwrite = T)
 
 

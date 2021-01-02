@@ -10,6 +10,8 @@
 #'
 #'@return A matrix of pathways enriched with given TFs
 #'
+#'@import enrichR
+#'
 #'@export
 #'
 EnrichrPathwayAnalysis <- function(TF.list, qvalue, dbs.selected) {

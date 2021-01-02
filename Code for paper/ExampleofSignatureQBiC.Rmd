@@ -19,9 +19,9 @@ Cancer Preferentially Affect Binding of Particular Transcription Factors.
 ```{r libs}
 library(PCAWG7)
 library(tibble)
+library(knitr)
 ```
-The QBiC scores table and p value table can be downloaded
-from http://qbic.genome.duke.edu/downloads, 'prediction_3.zip'
+
 
 ```{r inputs}
 
@@ -42,49 +42,59 @@ sig <- PCAWG_subs_signature[ , signature, drop = FALSE]
 all.possible.twelvemers <- 
   tibble(readRDS("../data-raw/all.possible.twelvemers.rds")) ##all mutations based on 11mers
 
-QBiC_scores_table <- 
-  data.table::fread(
-    "../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz",
-    sep=" ", header=T, stringsAsFactors = F, fill = T)
-# This gives a data frame with colums diff and z_score
-# QBiC_scores_table contains NA for non-mutations, e.g AAAAAAAAAAA -> AAAAAAAAAAA
-
-pvalue <- 
-  scan("../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz")
-# pvalue also contains NA for non-mutations
-pvalue <- pvalue[!is.na(pvalue)]
-
-QBiC_scores_matrix <- 
-  tibble(QBiC_mut = all.possible.twelvemers$seq, 
-         mut_type = all.possible.twelvemers$final_signature, 
-         scores   = QBiC_scores_table$z_score[!is.na(QBiC_scores_table$z_score)],
-         p        = pvalue,
-         q        = p.adjust(pvalue, method = "BH"))
-
-max.score <- as.integer(max(QBiC_scores_matrix$scores)) + 2
-  # Guaranteed that the QBiC scores' distribution will be symmetric
 ```
 
-### Plotting function for Figure1
+Plotting function for Figure1
 
 ```{r}
 TruncatedHist <- function(all.QBiC.scores,original.scores,weighted.prop,mutation.type){
-  cut_off <- quantile(all.QBiC.scores,seq(0,1,0.001))[1000] ##pile the 1% tail up
+  cut_off <- quantile(all.QBiC.scores,seq(0,1,0.01))[100] ##pile the 1% tail up
   original.scores[original.scores>cut_off] <- cut_off
   original.scores[original.scores<(-cut_off)] <- (-cut_off)
-  weighted.hist <- original.hist <- hist(original.scores, breaks = seq(-max.score,max.score,0.001), plot=F)
+  weighted.hist <- original.hist <- hist(original.scores, breaks = seq(-(cut_off+0.5),
+                                                                       (cut_off+0.5),0.5), plot=F)
   weighted.hist$density <-  weighted.hist$density*weighted.prop
-  plot(original.hist,freq = F,ylim=c(0,max(original.hist$density)+0.05),main=paste0("Original ",mutation.type))
-  plot(weighted.hist,freq=F,ylim = c(0,max(original.hist$density)+0.05),main=paste0("Weighted ",mutation.type))
+  plot(original.hist,freq = F,ylim=c(0,max(original.hist$density)+0.05),
+       main=paste0("Original ",mutation.type),xaxt="n",yaxt="n")
+  plot(weighted.hist,freq=F,ylim = c(0,max(original.hist$density)+0.05),
+       main=paste0("Weighted ",mutation.type),xaxt="n",yaxt="n")
 }
 ```
 
 
-## The Signature-QBiC function
+The SignatureQBiC function. This function can also be found in SigQBiC package. In SigQBiC package, 
+SignatureQBiC function returns Gain Ratio and Loss Ratio with the given QBiC scores, pvalues and signature. 
+For tutorial purpose, we split them into several chunks to show how we calculate Gain Ratio and Loss Ratio.
+Therefore, the SignatureQBiC here is slightly different from the one in package.
 
-```{r}
 
-SignatureQBiC <- function(QBiC_scores_matrix,sig, max.score, plot.path = NULL) {
+```{r SignatureQBiC function}
+
+SignatureQBiC <- function(QBiC_score_file_path,
+                          pvalue_file_path,
+                          sig, 
+                          plot.path = NULL) {
+  
+  QBiC_scores_table <- 
+    data.table::fread(QBiC_score_file_path,
+                      sep=" ", header=T, stringsAsFactors = F, fill = T)
+  # This gives a data frame with colums diff and z_score
+  # QBiC_scores_table contains NA for non-mutations, e.g AAAAAAAAAAA -> AAAAAAAAAAA
+  
+  pvalue <- 
+    scan(pvalue_file_path)
+  # pvalue also contains NA for non-mutations
+  pvalue <- pvalue[!is.na(pvalue)]
+  
+  QBiC_scores_matrix <- 
+    tibble(QBiC_mut = all.possible.twelvemers$seq, 
+           mut_type = all.possible.twelvemers$final_signature, 
+           scores   = QBiC_scores_table$z_score[!is.na(QBiC_scores_table$z_score)],
+           p        = pvalue,
+           q        = p.adjust(pvalue, method = "BH"))
+  
+  max.score <- as.integer(max(QBiC_scores_matrix$scores)) + 2
+  # Guaranteed that the QBiC scores' distribution will be symmetric
   
   summary <-data.frame(matrix(ncol=5,nrow=0))
   my.breaks <- seq(-max.score,max.score,0.001)
@@ -97,14 +107,9 @@ SignatureQBiC <- function(QBiC_scores_matrix,sig, max.score, plot.path = NULL) {
     }
     
     png(filename = paste0(plot.path, "/", "hist%03d.png"))
-    par(mar = c(3,1,1,1))
+    par(mar = c(1,1,1,1))
     par(mfrow = c(8,4))
     
-    # open.plot <- function(file.name.prefix) {
-    #  png(paste0(plot.path, "/", file.name.prefix, ".png"))
-    #  par(mar = c(3,1,1,1))
-    #  par(mfrow = c(8,4))
-    # }
   }
   
   for (mutation.type in mut.types) { 
@@ -141,26 +146,50 @@ SignatureQBiC <- function(QBiC_scores_matrix,sig, max.score, plot.path = NULL) {
   }
   if(!is.null(plot.path)){
     all.scores <-  QBiC_scores_matrix$scores
-    cut_off <- quantile( all.scores,seq(0,1,0.001))[1000] ##pile the 1% tail up
-    all.scores[all.scores>cut_off] <- cut_off
-    all.scores[all.scores<(-cut_off)] <- (-cut_off)
+    cut_off <- quantile(all.scores,seq(0,1,0.01))[100] ##pile the 1% tail up
     weighted.hist <- original.hist <- hist(all.scores, breaks = my.breaks, plot=F)
-    weighted.hist$density <-  all.weighted.freq
+    weighted.hist$counts <-  all.weighted.freq*sum(original.hist$counts)/sum(all.weighted.freq)
     # open.plot("summary")
-    plot(original.hist,freq = F,ylim=c(0,max(original.hist$density)+0.05),main = "Original Distribution")
-    plot(weighted.hist,freq=F,ylim = c(0,max(original.hist$density)+0.05),main = "Weighted Distribution")
+    plot(original.hist,main = "Original Distribution")
+    plot(weighted.hist,main = "Weighted Distribution")
     dev.off()
   }
   
-  return(summary)
+  return(list(QBiC_scores_matrix =QBiC_scores_matrix,
+              summaryofscores    = summary))
 }
 ```
 
 Run SignatureQBiC with the input above
-```{r}
-summaryofscores <- 
-  SignatureQBiC(QBiC_scores_matrix,sig, max.score = max.score, "./png.dir") 
+The QBiC scores table and p value table can be downloaded
+from http://qbic.genome.duke.edu/downloads, 'prediction_3.zip'
 
+```{r Running SignatureQBiC}
+result <- 
+  SignatureQBiC(QBiC_score_file_path =
+                  "../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz",
+                pvalue_file_path = 
+                  "../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz",
+                sig, 
+                "./png.dir") 
+
+```
+
+Here gives an example of scores for all mutations centered at C>T
+For each histogram, vertical axis corresponds to the density, and 
+horizontal axis corresponds to the QBiC-scores. The 'weighted TCA_TTA'
+contributes more large QBiC scores (a higher bar on the right comparing with the rest)
+```{r, Example figure}
+include_graphics("./png.dir/hist003.png")
+```
+
+Select $D'_{Pos}$ ($D'_{Neg}$) and $D_{Pos}$ ($D_{Neg}$) to calculate GR and LR
+This part is included in SigQBiC::SignatureQBiC. We show this part seperately for 
+tutorial purpose.
+```{r, Process and generate GR and LR}
+QBiC_scores_matrix <- result$QBiC_scores_matrix
+summaryofscores    <- result$summaryofscores
+rm(result)
 pos.sig.QBiC_scores_matrix <- 
   QBiC_scores_matrix[QBiC_scores_matrix$q < 0.1 & QBiC_scores_matrix$scores>0,] #select Dpos
 
@@ -171,10 +200,7 @@ summaryofscores$weighted.freq <-
   summaryofscores$weighted.freq * 
   sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)
 ##Normalize the weighted freqeuencies. After multiplying with signature probability, the weighted frequency is 96 times less than the original frequency. sum(freq) = 96*sum(weighted.freq)
-```
 
-Select $D'_{Pos}$ ($D'_{Neg}$) and $D_{Pos}$ ($D_{Neg}$) to calculate GR and LR
-```{r}
 summaryofscores.Dpos <- 
   summaryofscores[summaryofscores$scores>qvalue.cutoff.score, ] ##Select Dpos 
 
@@ -194,10 +220,11 @@ Dneg <- rep(summaryofscores.Dneg$scores,
 Dprimeneg <- rep(summaryofscores.Dneg$scores, 
                  round(summaryofscores.Dneg$weighted.freq, digits = 0))
 
-GR = sum(Dprimepos)/sum(Dpos)
-LR = sum(Dprimeneg)/sum(Dneg)
+GR = sum(Dprimepos)/sum(Dpos) ##GR = 2.952
+LR = sum(Dprimeneg)/sum(Dneg) ##LR = 0.058
 
 
 ```
+
 
 

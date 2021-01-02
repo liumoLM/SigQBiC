@@ -2,22 +2,20 @@ context("SignatureQBiC")
 
 test_that("SignatureQBiC Model", {
 
-  sigProfiler_SBS_sig <- fread("./testdata/sigProfiler_SBS_signatures_2019_05_22.csv")
+  load("testdata/SignatureQBiC.expected.Rdata")
+  QBiC_score_file_path =
+    "../../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz"
+  pvalue_file_path =
+    "../../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz"
+  PCAWG_subs_signature <- PCAWG7::signature$genome$SBS96
+  row.names(PCAWG_subs_signature) <- mut.types
+  sig <- PCAWG_subs_signature[,"SBS7a",drop=F]
 
-  sigProfiler_SBS_sig <- data.frame(sigProfiler_SBS_sig)
+  retval <- SignatureQBiC(QBiC_score_file_path,
+                               pvalue_file_path,
+                               sig,
+                               plot.path = NULL)
+  #save(test_retval,file="./tests/testthat/testdata/SignatureQBiC.expected.Rdata")
 
-  sigProfiler_SBS_sig$mutclass <- apply(sigProfiler_SBS_sig,1,function(x){
-
-    x["mutclass"] <- paste(x["SubType"],substring(x["Type"],3,3),sep="")
-
-  })
-
-  spectrum <- data.frame(sigProfiler_SBS_sig$SBS7a)
-
-  row.names(spectrum) <- mutation.type.list
-
-  uPBM.scores <- readRDS("./testdata/prediction6mer.Mus_musculus_M01396_1.94d_Berger08_Arx_1738.2.rds")
-
-
-  expect_equal(SignatureQBiC(uPBM.scores,spectrum), c(1.668,0.410))
+  expect_equal(retval, test_retval)
 })
