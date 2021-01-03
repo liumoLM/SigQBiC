@@ -1,8 +1,10 @@
 ---
 title: "ExampleOfSignatureQBiC"
-author: "Mo Liu"
+author: "Mo Liu, Steven G. Rozen"
 date: "12/30/2020"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -223,6 +225,36 @@ Dprimeneg <- rep(summaryofscores.Dneg$scores,
 GR = sum(Dprimepos)/sum(Dpos) ##GR = 2.952
 LR = sum(Dprimeneg)/sum(Dneg) ##LR = 0.058
 
+
+```
+
+Example of generating one set of random mutations with equal frequency. We generated 1000 sets of random mutations for statistical test
+
+```{r, Resampling test function}
+ResampleMutationFrequency <- function(i){
+  set.seed(i)
+  resampling.of.mut.type <- table(sample(c(1:96),size=nrow(all.possible.twelvemers),replace=T)) ##Generate mutations based on 96 trinucleotide based with equal frequency
+  
+  names(resampling.of.mut.type) <- mut.types
+  
+  resampling.of.mut.type <- resampling.of.mut.type/sum(resampling.of.mut.type) #Normalize number of mutations to sum of 1
+  return(resampling.of.mut.type)
+}
+```
+
+
+```{r, Resampling test}
+
+random.mut.freq <- data.frame(ResampleMutationFrequency(123))
+
+row.names(random.mut.freq) <- mut.types
+
+resampling.result <- 
+  SignatureQBiC(QBiC_score_file_path =
+                  "../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz",
+                pvalue_file_path = 
+                  "../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz",
+                sig) 
 
 ```
 

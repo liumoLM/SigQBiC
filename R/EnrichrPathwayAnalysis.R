@@ -2,7 +2,7 @@
 #'
 #'@description A function gives the pathways enriched with affected TFs by a given mutational signature
 #'
-#'@param TF.list A list of affected TFs
+#'@param TF.list A list of target TFs
 #'
 #'@param qvalue A numeric of qvalue as filter
 #'
