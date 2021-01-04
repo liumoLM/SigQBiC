@@ -8,7 +8,7 @@
 #'
 #'@param dbs.selected A character of database name in 'enrichR'. In our paper, we used 'Reactome_2016'
 #'
-#'@return A matrix of pathways enriched with given TFs
+#'@return A data frame providing information on the pathways enriched for the TFs in \code{TF.list}.
 #'
 #'@import enrichR
 #'
