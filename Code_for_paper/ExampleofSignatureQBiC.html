@@ -389,7 +389,8 @@ summary {
 <pre class="r"><code>library(PCAWG7)
 library(tibble)
 library(knitr)</code></pre>
-<pre class="r"><code>PCAWG_subs_signature &lt;- PCAWG7::signature$genome$SBS96
+<pre class="r"><code>#Read COSMIC signature. PCAWG7 package is needed (steverozen/PCAWG7)
+PCAWG_subs_signature &lt;- PCAWG7::signature$genome$SBS96
 
 mut.types &lt;- lapply(row.names(PCAWG_subs_signature),function(x){
   return(paste(substring(x,1,3),
@@ -400,12 +401,14 @@ mut.types &lt;- lapply(row.names(PCAWG_subs_signature),function(x){
 })
 mut.types &lt;- row.names(PCAWG_subs_signature) &lt;- unlist(mut.types)
 
-signature &lt;- &quot;SBS7a&quot; ##we used SBS7a as an example
+##we used SBS7a as an example
+signature &lt;- &quot;SBS7a&quot; 
 sig &lt;- PCAWG_subs_signature[ , signature, drop = FALSE]
 
+##all mutations based on 11mers
 all.possible.twelvemers &lt;- 
-  tibble(readRDS(&quot;../data-raw/all.possible.twelvemers.rds&quot;)) ##all mutations based on 11mers</code></pre>
-<p>Plotting function for Figure1</p>
+  tibble(readRDS(&quot;../data-raw/all.possible.twelvemers.rds&quot;)) </code></pre>
+<p>Plotting function for Figure1 This function plots the original distribution and weighted distribution with a signature as shown in Figure 1c,e</p>
 <pre class="r"><code>TruncatedHist &lt;- function(all.QBiC.scores,original.scores,weighted.prop,mutation.type){
   cut_off &lt;- quantile(all.QBiC.scores,seq(0,1,0.01))[100] ##pile the 1% tail up
   original.scores[original.scores&gt;cut_off] &lt;- cut_off
@@ -418,29 +421,10 @@ all.possible.twelvemers &lt;-
   plot(weighted.hist,freq=F,ylim = c(0,max(original.hist$density)+0.05),
        main=paste0(&quot;Weighted &quot;,mutation.type),xaxt=&quot;n&quot;,yaxt=&quot;n&quot;)
 }</code></pre>
-<p>The SignatureQBiC function. This function can also be found in SigQBiC package. In SigQBiC package, SignatureQBiC function returns Gain Ratio and Loss Ratio with the given QBiC scores, pvalues and signature. For tutorial purpose, we split them into several chunks to show how we calculate Gain Ratio and Loss Ratio. Therefore, the SignatureQBiC here is slightly different from the one in package.</p>
-<pre class="r"><code>SignatureQBiC &lt;- function(QBiC_score_file_path,
-                          pvalue_file_path,
-                          sig, 
-                          plot.path = NULL) {
-  
-  QBiC_scores_table &lt;- 
-    data.table::fread(QBiC_score_file_path,
-                      sep=&quot; &quot;, header=T, stringsAsFactors = F, fill = T)
-  # This gives a data frame with colums diff and z_score
-  # QBiC_scores_table contains NA for non-mutations, e.g AAAAAAAAAAA -&gt; AAAAAAAAAAA
-  
-  pvalue &lt;- 
-    scan(pvalue_file_path)
-  # pvalue also contains NA for non-mutations
-  pvalue &lt;- pvalue[!is.na(pvalue)]
-  
-  QBiC_scores_matrix &lt;- 
-    tibble(QBiC_mut = all.possible.twelvemers$seq, 
-           mut_type = all.possible.twelvemers$final_signature, 
-           scores   = QBiC_scores_table$z_score[!is.na(QBiC_scores_table$z_score)],
-           p        = pvalue,
-           q        = p.adjust(pvalue, method = &quot;BH&quot;))
+<p>The SignatureQBiC function. This function can also be found in SigQBiC package. In SigQBiC package, SignatureQBiC function returns Gain Ratio and Loss Ratio with the given QBiC scores, pvalues and signature. For tutorial purpose, we split them into several chunks to show how we calculate Gain Ratio and Loss Ratio. Therefore, the SignatureQBiC (called ‘SignatureQBiCExample’) here is slightly different from the one in package.</p>
+<pre class="r"><code>SignatureQBiCExample &lt;- function(QBiC_scores_matrix,
+                                 sig, 
+                                 plot.path = NULL) {
   
   max.score &lt;- as.integer(max(QBiC_scores_matrix$scores)) + 2
   # Guaranteed that the QBiC scores&#39; distribution will be symmetric
@@ -454,15 +438,12 @@ all.possible.twelvemers &lt;-
       if (!dir.create(plot.path, recursive = T))
         stop(&quot;Cannot create plotting directory &quot;, plot.path)
     }
-    
     png(filename = paste0(plot.path, &quot;/&quot;, &quot;hist%03d.png&quot;))
     par(mar = c(1,1,1,1))
     par(mfrow = c(8,4))
-    
   }
   
   for (mutation.type in mut.types) { 
-    
     stopifnot(mutation.type %in% QBiC_scores_matrix$mut_type)
     # Scores for the given mutation.type    
     tmp.scores &lt;- 
@@ -481,69 +462,77 @@ all.possible.twelvemers &lt;-
     ##multiply the counts of each bin by the frequency of mutations in a signature
     
     if(!is.null(plot.path)){
-      # Plot ...
+      #collect &#39;weighted.freq&#39; for each mutation type for the whole distribution plotting
       all.weighted.freq &lt;- all.weighted.freq + dist.hist$counts * sig[mutation.type, ]
-      # open.plot(mutation.type)
       TruncatedHist(QBiC_scores_matrix$scores,
                     original.scores = tmp.scores, 
                     weighted.prop = sig[mutation.type, ],
                     mutation.type=mutation.type)
-      # dev.off()
     }
-    
     summary &lt;- rbind(summary, partial.summary)
   }
   if(!is.null(plot.path)){
     all.scores &lt;-  QBiC_scores_matrix$scores
     cut_off &lt;- quantile(all.scores,seq(0,1,0.01))[100] ##pile the 1% tail up
     weighted.hist &lt;- original.hist &lt;- hist(all.scores, breaks = my.breaks, plot=F)
-    weighted.hist$counts &lt;-  all.weighted.freq*sum(original.hist$counts)/sum(all.weighted.freq)
-    # open.plot(&quot;summary&quot;)
+    weighted.hist$counts &lt;-  
+      all.weighted.freq*sum(original.hist$counts)/sum(all.weighted.freq)
     plot(original.hist,main = &quot;Original Distribution&quot;)
     plot(weighted.hist,main = &quot;Weighted Distribution&quot;)
     dev.off()
   }
   
-  return(list(QBiC_scores_matrix =QBiC_scores_matrix,
-              summaryofscores    = summary))
+  return(summary)
 }</code></pre>
 <p>Run SignatureQBiC with the input above The QBiC scores table and p value table can be downloaded from <a href="http://qbic.genome.duke.edu/downloads" class="uri">http://qbic.genome.duke.edu/downloads</a>, ‘prediction_3.zip’</p>
-<pre class="r"><code>result &lt;- 
-  SignatureQBiC(QBiC_score_file_path =
-                  &quot;../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz&quot;,
-                pvalue_file_path = 
-                  &quot;../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz&quot;,
-                sig, 
-                &quot;./png.dir&quot;) </code></pre>
-<p>Here gives an example of scores for all mutations centered at C&gt;T For each histogram, vertical axis corresponds to the density, and horizontal axis corresponds to the QBiC-scores. The ‘weighted TCA_TTA’ contributes more large QBiC scores (a higher bar on the right comparing with the rest)</p>
+<pre class="r"><code>QBiC_score_file_path =
+  &quot;../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz&quot;
+pvalue_file_path = 
+  &quot;../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz&quot;
+QBiC_scores_table &lt;- 
+  data.table::fread(QBiC_score_file_path,stringsAsFactors = F, fill = T)
+# This gives a data frame with colums diff and z_score
+# QBiC_scores_table contains NA for non-mutations, e.g AAAAAAAAAAA -&gt; AAAAAAAAAAA
+pvalue &lt;- scan(pvalue_file_path)
+# pvalue also contains NA for non-mutations
+pvalue &lt;- pvalue[!is.na(pvalue)]
+
+QBiC_scores_matrix &lt;- 
+  tibble(QBiC_mut = all.possible.twelvemers$seq, 
+         mut_type = all.possible.twelvemers$final_signature, 
+         scores   = QBiC_scores_table$z_score[!is.na(QBiC_scores_table$z_score)],
+         p        = pvalue,
+         q        = p.adjust(pvalue, method = &quot;BH&quot;))
+
+summaryofscores &lt;- 
+  SignatureQBiCExample(QBiC_scores_matrix = QBiC_scores_matrix,
+                       sig = sig, 
+                       plot.path = &quot;./png.dir&quot;) </code></pre>
+<p>Here gives an example of scores for all mutations centered at C&gt;T For each histogram, vertical axis corresponds to the density, and horizontal axis corresponds to the QBiC-scores. The ‘weighted TCA_TTA’ contributes more large QBiC scores (a higher bar on the right)</p>
 <pre class="r"><code>include_graphics(&quot;./png.dir/hist003.png&quot;)</code></pre>
 <p><img src="data:image/png;base64,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" /><!-- --></p>
-<p>Select <span class="math inline">\(D&#39;_{Pos}\)</span> (<span class="math inline">\(D&#39;_{Neg}\)</span>) and <span class="math inline">\(D_{Pos}\)</span> (<span class="math inline">\(D_{Neg}\)</span>) to calculate GR and LR This part is included in SigQBiC::SignatureQBiC. We show this part seperately for tutorial purpose.</p>
-<pre class="r"><code>QBiC_scores_matrix &lt;- result$QBiC_scores_matrix
-summaryofscores    &lt;- result$summaryofscores
-rm(result)
-pos.sig.QBiC_scores_matrix &lt;- 
+<p>Get scores with FDR&lt;0.1 (T as indicated in paper)</p>
+<pre class="r"><code>pos.sig.QBiC_scores_matrix &lt;- 
   QBiC_scores_matrix[QBiC_scores_matrix$q &lt; 0.1 &amp; QBiC_scores_matrix$scores&gt;0,] #select Dpos
 
+##get the cutoff of QBiC scores based on BH FDR (indicated as T in paper)
+qvalue.cutoff.score &lt;- min(pos.sig.QBiC_scores_matrix$scores)
 
-qvalue.cutoff.score &lt;- min(pos.sig.QBiC_scores_matrix$scores) ##get the cutoff of QBiC scores based on BH FDR
-
+##Normalize the weighted freqeuencies. After multiplying with signature probability, the weighted frequency is 96 times less than the original frequency. sum(freq) = 96*sum(weighted.freq)
 summaryofscores$weighted.freq &lt;- 
   summaryofscores$weighted.freq * 
-  sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)
-##Normalize the weighted freqeuencies. After multiplying with signature probability, the weighted frequency is 96 times less than the original frequency. sum(freq) = 96*sum(weighted.freq)
-
-summaryofscores.Dpos &lt;- 
+  sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)</code></pre>
+<p>Select <span class="math inline">\(D&#39;_{Pos}\)</span> (<span class="math inline">\(D&#39;_{Neg}\)</span>) and <span class="math inline">\(D_{Pos}\)</span> (<span class="math inline">\(D_{Neg}\)</span>) to calculate GR and LR This part is included in SigQBiC::SignatureQBiC. We show this part seperately for tutorial purpose. Generate Dpos and D’pos based on T, and calculate Gain Ratio (GR). GR &gt; 1 stands for area(D’pos) &gt; area(Dpos)</p>
+<pre class="r"><code>summaryofscores.Dpos &lt;- 
   summaryofscores[summaryofscores$scores&gt;qvalue.cutoff.score, ] ##Select Dpos 
 
 Dpos &lt;- rep(summaryofscores.Dpos$scores, 
-            summaryofscores.Dpos$frequency)
-
+            summaryofscores.Dpos$frequency) #Transform the information from histogram to a numeric vector
 Dprimepos &lt;- rep(summaryofscores.Dpos$scores, 
                  round(summaryofscores.Dpos$weighted.freq, digits = 0))
-
-
-summaryofscores.Dneg &lt;- 
+GR = sum(Dprimepos)/sum(Dpos) ##GR = 2.952</code></pre>
+<p>Generate Dneg and D’neg based on T, and calculate Loss Ratio (LR) LR &gt; 1 stands for area(D’neg) &gt; area(Dneg)</p>
+<pre class="r"><code>summaryofscores.Dneg &lt;- 
   summaryofscores[summaryofscores$scores&lt;(-qvalue.cutoff.score), ] ##Select Dneg 
 
 Dneg &lt;- rep(summaryofscores.Dneg$scores, 
@@ -551,8 +540,6 @@ Dneg &lt;- rep(summaryofscores.Dneg$scores,
 
 Dprimeneg &lt;- rep(summaryofscores.Dneg$scores, 
                  round(summaryofscores.Dneg$weighted.freq, digits = 0))
-
-GR = sum(Dprimepos)/sum(Dpos) ##GR = 2.952
 LR = sum(Dprimeneg)/sum(Dneg) ##LR = 0.058</code></pre>
 <p>Example of generating one set of random mutations with equal frequency. We generated 1000 sets of random mutations for statistical test</p>
 <pre class="r"><code>ResampleMutationFrequency &lt;- function(i){
@@ -564,16 +551,36 @@ LR = sum(Dprimeneg)/sum(Dneg) ##LR = 0.058</code></pre>
   resampling.of.mut.type &lt;- resampling.of.mut.type/sum(resampling.of.mut.type) #Normalize number of mutations to sum of 1
   return(resampling.of.mut.type)
 }</code></pre>
-<pre class="r"><code>random.mut.freq &lt;- data.frame(ResampleMutationFrequency(123))
+<p>Generate GR and LR for random mutations.</p>
+<pre class="r"><code>random.mut.freq &lt;- data.frame(ResampleMutationFrequency(123),row.names = 1)
 
-row.names(random.mut.freq) &lt;- mut.types
+summaryofscores.test &lt;- 
+  SignatureQBiCExample(QBiC_scores_matrix = QBiC_scores_matrix,
+                       sig = random.mut.freq) 
 
-resampling.result &lt;- 
-  SignatureQBiC(QBiC_score_file_path =
-                  &quot;../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz&quot;,
-                pvalue_file_path = 
-                  &quot;../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz&quot;,
-                sig) </code></pre>
+summaryofscores.test$weighted.freq &lt;- 
+  summaryofscores.test$weighted.freq * 
+  sum(summaryofscores.test$frequency)/sum(summaryofscores.test$weighted.freq)
+##Calculate GR and LR. Similar as above
+summaryofscores.test.Dpos &lt;- 
+  summaryofscores.test[summaryofscores.test$scores&gt;qvalue.cutoff.score, ] ##Select Dpos 
+
+Dpos &lt;- rep(summaryofscores.test.Dpos$scores, 
+            summaryofscores.test.Dpos$frequency) #Transform the information from histogram to a numeric vector
+Dprimepos &lt;- rep(summaryofscores.test.Dpos$scores, 
+                 round(summaryofscores.test.Dpos$weighted.freq, digits = 0))
+GR.resample = sum(Dprimepos)/sum(Dpos) ##GR.resample = 1 
+
+summaryofscores.test.Dneg &lt;- 
+  summaryofscores.test[summaryofscores.test$scores&lt;(-qvalue.cutoff.score), ] ##Select Dneg 
+
+Dneg &lt;- rep(summaryofscores.test.Dneg$scores, 
+            summaryofscores.test.Dneg$frequency)
+
+Dprimeneg &lt;- rep(summaryofscores.test.Dneg$scores, 
+                 round(summaryofscores.test.Dneg$weighted.freq, digits = 0))
+LR.resample = sum(Dprimeneg)/sum(Dneg) ##LR.resample = 1</code></pre>
+<p>GR.resample = 1 shows that area(D’pos) = area(Dpos) under the resampled mutations with equal frequency, analogously for LR.resample = 1.</p>
 </div>
 
 
