@@ -16,17 +16,23 @@ knitr::opts_chunk$set(echo = TRUE)
 This is the example shown in Figure 1b of Liu et al., Mutational Processes in 
 Cancer Preferentially Affect Binding of Particular Transcription Factors.
 
-## Load libraries
+### Load libraries
+
+Note: you will need to install the github package PCAWG7 if not already 
+installed. This contains the mutational signature profiles.
+
+```{r, eval=FALSE}
+remotes::install_github("steverozen/PCAWG7")
+```
 
 ```{r libs}
 library(PCAWG7)
 library(tibble)
-library(knitr)
 ```
 
+### Get information on mutational signatures
 
-```{r inputs}
-#Read COSMIC signature. PCAWG7 package is needed (steverozen/PCAWG7)
+```{r sig_inputs}
 PCAWG_subs_signature <- PCAWG7::signature$genome$SBS96
 
 mut.types <- lapply(row.names(PCAWG_subs_signature),function(x){
@@ -38,18 +44,53 @@ mut.types <- lapply(row.names(PCAWG_subs_signature),function(x){
 })
 mut.types <- row.names(PCAWG_subs_signature) <- unlist(mut.types)
 
-##we used SBS7a as an example
+## We used SBS7a as an example
 signature <- "SBS7a" 
 sig <- PCAWG_subs_signature[ , signature, drop = FALSE]
-
-##all mutations based on 11mers
-all.possible.twelvemers <- 
-  tibble(readRDS("../data-raw/all.possible.twelvemers.rds")) 
-
 ```
 
-Plotting function for Figure1
-This function plots the original distribution and weighted distribution with a signature as shown in Figure 1c,e
+### Gather the QBiC (protein binding microarray) information
+
+We downloaded the QBiC scores table and p value table from
+http://qbic.genome.duke.edu/downloads.
+The data are distributed across multiple files.
+For this example we used the "part-3" link
+to get the file 'prediction_3.zip'.
+We changed '|' characters in the file names to '!' to avoid
+problems on MS Windows.
+
+```{r QBiC_inputs}
+QBiC_score_file_path <-
+  "../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz"
+QBiC_scores_table <- 
+  data.table::fread(QBiC_score_file_path, stringsAsFactors = F, fill = T)
+# This gives a data frame with columns diff and z_score
+# QBiC_scores_table contains NA for non-mutations, e.g AAAAAAAAAAA -> AAAAAAAAAAA
+
+pvalue_file_path <- 
+  "../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz"
+pvalue <- scan(pvalue_file_path)
+# pvalue also contains NA for non-mutations
+pvalue <- pvalue[!is.na(pvalue)]
+
+all.possible.twelvemers <- 
+  tibble(readRDS("../data-raw/all.possible.twelvemers.rds")) 
+QBiC_score_info <- 
+  tibble(QBiC_mut = all.possible.twelvemers$seq, 
+         mut_type = all.possible.twelvemers$final_signature, 
+         scores   = QBiC_scores_table$z_score[!is.na(QBiC_scores_table$z_score)],
+         p        = pvalue,
+         q        = p.adjust(pvalue, method = "BH"))
+rm(pvalue_file_path, QBiC_scores_table, QBiC_score_file_path)
+```
+
+# Plotting function for Figure 1
+
+This function plots the distributions 
+of QBiC scores assuming all mutations occur at equal
+frequencies and assuming mutations occur at frequencies
+in a particular mutational signature. See main text
+Figure 1c,e.7
 
 ```{r}
 TruncatedHist <- function(all.QBiC.scores,original.scores,weighted.prop,mutation.type){
@@ -67,19 +108,24 @@ TruncatedHist <- function(all.QBiC.scores,original.scores,weighted.prop,mutation
 ```
 
 
-The SignatureQBiC function. This function can also be found in SigQBiC package. In SigQBiC package, 
-SignatureQBiC function returns Gain Ratio and Loss Ratio with the given QBiC scores, pvalues and signature. 
-For tutorial purpose, we split them into several chunks to show how we calculate Gain Ratio and Loss Ratio.
-Therefore, the SignatureQBiC (called 'SignatureQBiCExample') here is slightly different from the one in package.
+### The SignatureQBiC function.
+
+This function can also be found in SigQBiC package.
+In the SigQBiC package, 
+SignatureQBiC function returns Gain Ratio and Loss Ratio with the given 
+QBiC scores, pvalues and signature. 
+For tutorial purpose, here we split
+SignatureQBiC into several chunks to show how 
+we calculate Gain Ratio and Loss Ratio.
 
 
-```{r SignatureQBiC function}
+```{r SignatureQBiC_function}
 
-SignatureQBiCExample <- function(QBiC_scores_matrix,
+SignatureQBiCExample <- function(QBiC_score_info,
                                  sig, 
                                  plot.path = NULL) {
   
-  max.score <- as.integer(max(QBiC_scores_matrix$scores)) + 2
+  max.score <- as.integer(max(QBiC_score_info$scores)) + 2
   # Guaranteed that the QBiC scores' distribution will be symmetric
   
   summary <-data.frame(matrix(ncol=5,nrow=0))
@@ -97,10 +143,10 @@ SignatureQBiCExample <- function(QBiC_scores_matrix,
   }
   
   for (mutation.type in mut.types) { 
-    stopifnot(mutation.type %in% QBiC_scores_matrix$mut_type)
+    stopifnot(mutation.type %in% QBiC_score_info$mut_type)
     # Scores for the given mutation.type    
     tmp.scores <- 
-      QBiC_scores_matrix$scores[QBiC_scores_matrix$mut_type==mutation.type] ##the scores were put into bins
+      QBiC_score_info$scores[QBiC_score_info$mut_type==mutation.type] ##the scores were put into bins
     
     dist.hist <- hist(tmp.scores, breaks = my.breaks, plot=F)
     w.dist.hist <- dist.hist
@@ -117,7 +163,7 @@ SignatureQBiCExample <- function(QBiC_scores_matrix,
     if(!is.null(plot.path)){
       #collect 'weighted.freq' for each mutation type for the whole distribution plotting
       all.weighted.freq <- all.weighted.freq + dist.hist$counts * sig[mutation.type, ]
-      TruncatedHist(QBiC_scores_matrix$scores,
+      TruncatedHist(QBiC_score_info$scores,
                     original.scores = tmp.scores, 
                     weighted.prop = sig[mutation.type, ],
                     mutation.type=mutation.type)
@@ -125,7 +171,7 @@ SignatureQBiCExample <- function(QBiC_scores_matrix,
     summary <- rbind(summary, partial.summary)
   }
   if(!is.null(plot.path)){
-    all.scores <-  QBiC_scores_matrix$scores
+    all.scores <-  QBiC_score_info$scores
     cut_off <- quantile(all.scores,seq(0,1,0.01))[100] ##pile the 1% tail up
     weighted.hist <- original.hist <- hist(all.scores, breaks = my.breaks, plot=F)
     weighted.hist$counts <-  
@@ -139,65 +185,63 @@ SignatureQBiCExample <- function(QBiC_scores_matrix,
 }
 ```
 
-Run SignatureQBiC with the input above
-The QBiC scores table and p value table can be downloaded
-from http://qbic.genome.duke.edu/downloads, 'prediction_3.zip'
+Run SignatureQBiC.
 
-```{r Running SignatureQBiC}
-QBiC_score_file_path =
-  "../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz"
-pvalue_file_path = 
-  "../data-raw/pval6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.csv.gz"
-QBiC_scores_table <- 
-  data.table::fread(QBiC_score_file_path,stringsAsFactors = F, fill = T)
-# This gives a data frame with colums diff and z_score
-# QBiC_scores_table contains NA for non-mutations, e.g AAAAAAAAAAA -> AAAAAAAAAAA
-pvalue <- scan(pvalue_file_path)
-# pvalue also contains NA for non-mutations
-pvalue <- pvalue[!is.na(pvalue)]
-
-QBiC_scores_matrix <- 
-  tibble(QBiC_mut = all.possible.twelvemers$seq, 
-         mut_type = all.possible.twelvemers$final_signature, 
-         scores   = QBiC_scores_table$z_score[!is.na(QBiC_scores_table$z_score)],
-         p        = pvalue,
-         q        = p.adjust(pvalue, method = "BH"))
-
-summaryofscores <- 
-  SignatureQBiCExample(QBiC_scores_matrix = QBiC_scores_matrix,
-                       sig = sig, 
-                       plot.path = "./png.dir") 
-
+```{r Run_SignatureQBiC}
+if (file.exists("ss.rds")) {
+  summaryofscores <- readRDS("ss.rds")
+} else {
+  summaryofscores <- 
+    SignatureQBiCExample(QBiC_score_info = QBiC_score_info,
+                         sig = sig, 
+                         plot.path = "./png.dir") 
+  saveRDS(summaryofscores, "ss.rds")
+}
 ```
 
-Here gives an example of scores for all mutations centered at C>T
-For each histogram, vertical axis corresponds to the density, and 
-horizontal axis corresponds to the QBiC-scores. The 'weighted TCA_TTA'
-contributes more large QBiC scores (a higher bar on the right)
-```{r, Example figure}
-include_graphics("./png.dir/hist003.png")
+### Example of part of plotting output from SignatureQBicExample
+
+This figure shows the distributions of QBiC scores for mutations centered at C>T
+For each histogram, the vertical axis indicates the density, and 
+horizontal axis indicates the QBiC scores. The 'weighted TCA_TTA' plot
+in the first column, second plot from the bottom) shows an
+example of the case in which that particular mutation (TCA to TTA)
+is expected to generate many mutations with high QBiC scores
+(high bar at the far right of the plot).
+
+```{r Example_figure}
+knitr::include_graphics("./png.dir/hist003.png")
 ```
 
-Get scores with FDR<0.1 (T as indicated in paper)
+
+### Find the p-value cutoff for $D_{Pos}$ and $D_{Neg}$
+
+We first show the example for $D_{Pos}$.
+
 ```{r, Processing data}
-pos.sig.QBiC_scores_matrix <- 
-  QBiC_scores_matrix[QBiC_scores_matrix$q < 0.1 & QBiC_scores_matrix$scores>0,] #select Dpos
+pos.sig.QBiC_score_info <- 
+  QBiC_score_info[QBiC_score_info$q < 0.1 & QBiC_score_info$scores>0,] #select Dpos
 
 ##get the cutoff of QBiC scores based on BH FDR (indicated as T in paper)
-qvalue.cutoff.score <- min(pos.sig.QBiC_scores_matrix$scores)
+qvalue.cutoff.score <- min(pos.sig.QBiC_score_info$scores)
 
-##Normalize the weighted freqeuencies. After multiplying with signature probability, the weighted frequency is 96 times less than the original frequency. sum(freq) = 96*sum(weighted.freq)
+# Normalize the weighted frequencies. After multiplying with signature
+# probability, the weighted frequency is 96 times less than the original
+# frequency. sum(freq) = 96*sum(weighted.freq)
 summaryofscores$weighted.freq <- 
   summaryofscores$weighted.freq * 
   sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)
 ```
 
 Select $D'_{Pos}$ ($D'_{Neg}$) and $D_{Pos}$ ($D_{Neg}$) to calculate GR and LR
-This part is included in SigQBiC::SignatureQBiC. We show this part seperately for 
+This part is included in SigQBiC::SignatureQBiC. We show this part separately for 
 tutorial purpose.
 Generate Dpos and D'pos based on T, and calculate Gain Ratio (GR).
 GR > 1 stands for area(D'pos) > area(Dpos)
-```{r, Generate Gain Ratio (GR)}
+
+### Compute $D'_{Pos}$ and the Gain Ratio, GR
+
+```{r Generate_Gain_Ratio}
 summaryofscores.Dpos <- 
   summaryofscores[summaryofscores$scores>qvalue.cutoff.score, ] ##Select Dpos 
 
@@ -205,12 +249,14 @@ Dpos <- rep(summaryofscores.Dpos$scores,
             summaryofscores.Dpos$frequency) #Transform the information from histogram to a numeric vector
 Dprimepos <- rep(summaryofscores.Dpos$scores, 
                  round(summaryofscores.Dpos$weighted.freq, digits = 0))
-GR = sum(Dprimepos)/sum(Dpos) ##GR = 2.952
+GR = sum(Dprimepos)/sum(Dpos)
+GR ##GR = 2.952
 ```
 
 Generate Dneg and D'neg based on T, and calculate Loss Ratio (LR)
 LR > 1 stands for area(D'neg) > area(Dneg)
-```{r, Generate Loss Ratio (LR)}
+
+```{r Generate_Loss_Ratio}
 summaryofscores.Dneg <- 
   summaryofscores[summaryofscores$scores<(-qvalue.cutoff.score), ] ##Select Dneg 
 
@@ -220,15 +266,21 @@ Dneg <- rep(summaryofscores.Dneg$scores,
 Dprimeneg <- rep(summaryofscores.Dneg$scores, 
                  round(summaryofscores.Dneg$weighted.freq, digits = 0))
 LR = sum(Dprimeneg)/sum(Dneg) ##LR = 0.058
+LR
 
 ```
 
-Example of generating one set of random mutations with equal frequency. We generated 1000 sets of random mutations for statistical test
+### Calculate whether area($D'_{Pos}$) is statistically > area($D_{Pos}$)
 
-```{r, Resampling test function}
+Example of generating one set of random mutations with equal frequency.
+We generated 1000 sets of random mutations for statistical test
+
+```{r Resampling_test_function}
 ResampleMutationFrequency <- function(i){
   set.seed(i)
-  resampling.of.mut.type <- table(sample(c(1:96),size=nrow(all.possible.twelvemers),replace=T)) ##Generate mutations based on 96 trinucleotide based with equal frequency
+  ##Generate mutations based on 96 trinucleotide based with equal frequency
+  resampling.of.mut.type <- 
+    table(sample(c(1:96),size=nrow(all.possible.twelvemers),replace=T)) 
   
   names(resampling.of.mut.type) <- mut.types
   
@@ -237,13 +289,15 @@ ResampleMutationFrequency <- function(i){
 }
 ```
 
-Generate GR and LR for random mutations.
-```{r, Resampling test}
+Generate GR and LR for random mutations assuming all mutations occur
+at equal frequency.
+
+```{r Resampling_test}
 
 random.mut.freq <- data.frame(ResampleMutationFrequency(123),row.names = 1)
 
 summaryofscores.test <- 
-  SignatureQBiCExample(QBiC_scores_matrix = QBiC_scores_matrix,
+  SignatureQBiCExample(QBiC_score_info = QBiC_score_info,
                        sig = random.mut.freq) 
 
 summaryofscores.test$weighted.freq <- 
@@ -269,9 +323,11 @@ Dprimeneg <- rep(summaryofscores.test.Dneg$scores,
                  round(summaryofscores.test.Dneg$weighted.freq, digits = 0))
 LR.resample = sum(Dprimeneg)/sum(Dneg) ##LR.resample = 1
 
-
 ```
 
-GR.resample = 1 shows that area(D'pos) = area(Dpos) under the resampled mutations with equal frequency, analogously for LR.resample = 1.
+GR.resample = 1 shows that the distribution of 
+area({$D*_{Pos}$) < area($D'_{Pos}$) 
+under the resampled mutations with equal frequency.
+The situation is the same for the area({$D*_{Neg}$)
 
 
