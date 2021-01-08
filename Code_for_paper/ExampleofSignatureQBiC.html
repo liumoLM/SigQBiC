@@ -385,7 +385,7 @@ summary {
 <p>This is the example shown in Figure 1b of Liu et al., Mutational Processes in Cancer Preferentially Affect Binding of Particular Transcription Factors.</p>
 <div id="load-libraries" class="section level3">
 <h3>Load libraries</h3>
-<p>Note: you will need to install the github package PCAWG7 if not already installed.</p>
+<p>Note: you will need to install the github package PCAWG7 if not already installed. This contains the mutational signature profiles.</p>
 <pre class="r"><code>remotes::install_github(&quot;steverozen/PCAWG7&quot;)</code></pre>
 <pre class="r"><code>library(PCAWG7)
 library(tibble)</code></pre>
@@ -409,7 +409,7 @@ sig &lt;- PCAWG_subs_signature[ , signature, drop = FALSE]</code></pre>
 </div>
 <div id="gather-the-qbic-protein-binding-microarray-information" class="section level3">
 <h3>Gather the QBiC (protein binding microarray) information</h3>
-<p>We downloaded the QBiC scores table and p value table from <a href="http://qbic.genome.duke.edu/downloads" class="uri">http://qbic.genome.duke.edu/downloads</a>. The data are distributed across multiple files. For this example we used the “part-3” link. to get the file ‘prediction_3.zip’. We changed ‘|’ characters in the file names to ‘!’ to avoid problems on MS Windows.</p>
+<p>We downloaded the QBiC scores table and p value table from <a href="http://qbic.genome.duke.edu/downloads" class="uri">http://qbic.genome.duke.edu/downloads</a>. The data are distributed across multiple files. For this example we used the “part-3” link to get the file ‘prediction_3.zip’. We changed ‘|’ characters in the file names to ‘!’ to avoid problems on MS Windows.</p>
 <pre class="r"><code>QBiC_score_file_path &lt;-
   &quot;../data-raw/prediction6mer.Homo_sapiens!M01252_1.94d!Barrera2016!HOXD13_I322L_R1.txt.gz&quot;
 QBiC_scores_table &lt;- 
@@ -531,6 +531,13 @@ rm(pvalue_file_path, QBiC_scores_table, QBiC_score_file_path)</code></pre>
 <pre class="r"><code>knitr::include_graphics(&quot;./png.dir/hist003.png&quot;)</code></pre>
 <p><img src="data:image/png;base64,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" /><!-- --></p>
 </div>
+<div id="normalize-the-weighted-frequencies." class="section level3">
+<h3>Normalize the weighted frequencies.</h3>
+<p>After multiplying with signature probability, the weighted frequency is less than the original frequency. To compare the weighted distribution with original distribution, the frequency of two distribution should be normalized to the same.</p>
+<pre class="r"><code>summaryofscores$weighted.freq &lt;- 
+  summaryofscores$weighted.freq * 
+  sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)</code></pre>
+</div>
 <div id="find-the-p-value-cutoff-for-d_pos-and-d_neg" class="section level3">
 <h3>Find the p-value cutoff for <span class="math inline">\(D_{Pos}\)</span> and <span class="math inline">\(D_{Neg}\)</span></h3>
 <p>We first show the example for <span class="math inline">\(D_{Pos}\)</span>.</p>
@@ -538,14 +545,7 @@ rm(pvalue_file_path, QBiC_scores_table, QBiC_score_file_path)</code></pre>
   QBiC_score_info[QBiC_score_info$q &lt; 0.1 &amp; QBiC_score_info$scores&gt;0,] #select Dpos
 
 ##get the cutoff of QBiC scores based on BH FDR (indicated as T in paper)
-qvalue.cutoff.score &lt;- min(pos.sig.QBiC_score_info$scores)
-
-# Normalize the weighted frequencies. After multiplying with signature
-# probability, the weighted frequency is 96 times less than the original
-# frequency. sum(freq) = 96*sum(weighted.freq)
-summaryofscores$weighted.freq &lt;- 
-  summaryofscores$weighted.freq * 
-  sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)</code></pre>
+qvalue.cutoff.score &lt;- min(pos.sig.QBiC_score_info$scores)</code></pre>
 <p>Select <span class="math inline">\(D&#39;_{Pos}\)</span> (<span class="math inline">\(D&#39;_{Neg}\)</span>) and <span class="math inline">\(D_{Pos}\)</span> (<span class="math inline">\(D_{Neg}\)</span>) to calculate GR and LR This part is included in SigQBiC::SignatureQBiC. We show this part separately for tutorial purpose. Generate Dpos and D’pos based on T, and calculate Gain Ratio (GR). GR &gt; 1 stands for area(D’pos) &gt; area(Dpos)</p>
 </div>
 <div id="compute-d_pos-and-the-gain-ratio-gr" class="section level3">
@@ -575,7 +575,7 @@ LR</code></pre>
 </div>
 <div id="calculate-whether-aread_pos-is-statistically-aread_pos" class="section level3">
 <h3>Calculate whether area(<span class="math inline">\(D&#39;_{Pos}\)</span>) is statistically &gt; area(<span class="math inline">\(D_{Pos}\)</span>)</h3>
-<p>Example of generating one set of random mutations with equal frequency. We generated 1000 sets of random mutations for statistical test</p>
+<p>For the GR and LR predicted for a TF-signature pair, we did this statistical test when the GR&gt;1 or LR&gt;1. So in this case, we only perform the statistical test for GR. Example of generating one set of random mutations with equal frequency. We generated 1000 sets of random mutations for statistical test</p>
 <pre class="r"><code>ResampleMutationFrequency &lt;- function(i){
   set.seed(i)
   ##Generate mutations based on 96 trinucleotide based with equal frequency
@@ -596,27 +596,19 @@ summaryofscores.test &lt;-
 
 summaryofscores.test$weighted.freq &lt;- 
   summaryofscores.test$weighted.freq * 
-  sum(summaryofscores.test$frequency)/sum(summaryofscores.test$weighted.freq)
-##Calculate GR and LR. Similar as above
+  sum(summaryofscores.test$frequency)/sum(summaryofscores.test$weighted.freq)</code></pre>
+</div>
+<div id="calculate-whether-aread_pos-of-resampled-mutations-with-equal-frequency-is-larger-than-aread_pos-of-mutations-with-signature-frequency" class="section level3">
+<h3>Calculate whether area(<span class="math inline">\(D&#39;_{Pos}\)</span>) of resampled mutations with equal frequency is larger than area(<span class="math inline">\(D&#39;_{Pos}\)</span>) of mutations with signature frequency</h3>
+<pre class="r"><code>##Calculate GR and LR. Similar as above
 summaryofscores.test.Dpos &lt;- 
-  summaryofscores.test[summaryofscores.test$scores&gt;qvalue.cutoff.score, ] ##Select Dpos 
-
-Dpos &lt;- rep(summaryofscores.test.Dpos$scores, 
-            summaryofscores.test.Dpos$frequency) #Transform the information from histogram to a numeric vector
-Dprimepos &lt;- rep(summaryofscores.test.Dpos$scores, 
+  summaryofscores.test[summaryofscores.test$scores&gt;qvalue.cutoff.score, ] ##Select Dpos
+Dprimepos_resampled &lt;- rep(summaryofscores.test.Dpos$scores, 
                  round(summaryofscores.test.Dpos$weighted.freq, digits = 0))
-GR.resample = sum(Dprimepos)/sum(Dpos) ##GR.resample = 1 
-
-summaryofscores.test.Dneg &lt;- 
-  summaryofscores.test[summaryofscores.test$scores&lt;(-qvalue.cutoff.score), ] ##Select Dneg 
-
-Dneg &lt;- rep(summaryofscores.test.Dneg$scores, 
-            summaryofscores.test.Dneg$frequency)
-
-Dprimeneg &lt;- rep(summaryofscores.test.Dneg$scores, 
-                 round(summaryofscores.test.Dneg$weighted.freq, digits = 0))
-LR.resample = sum(Dprimeneg)/sum(Dneg) ##LR.resample = 1</code></pre>
-<p>GR.resample = 1 shows that the distribution of area({<span class="math inline">\(D*_{Pos}\)</span>) &lt; area(<span class="math inline">\(D&#39;_{Pos}\)</span>) under the resampled mutations with equal frequency. The situation is the same for the area({<span class="math inline">\(D*_{Neg}\)</span>)</p>
+GR.resample &lt;- sum(Dprimepos)/sum(Dprimepos_resampled)
+GR.resample</code></pre>
+<pre><code>## [1] 2.951748</code></pre>
+<p>GR.resample = 2.95 tells that area({<span class="math inline">\(D*_{Pos}\)</span>) is larger than area(<span class="math inline">\(D&#39;_{Pos}\)</span>) of the resampled mutations with equal frequency.</p>
 </div>
 </div>
 

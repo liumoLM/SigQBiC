@@ -214,6 +214,18 @@ knitr::include_graphics("./png.dir/hist003.png")
 ```
 
 
+### Normalize the weighted frequencies. 
+After multiplying with signature probability, the weighted frequency is less than the original frequency. 
+To compare the weighted distribution with original distribution, the frequency of two distribution should be normalized to the same.
+
+```{r}
+summaryofscores$weighted.freq <- 
+  summaryofscores$weighted.freq * 
+  sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)
+```
+
+
+
 ### Find the p-value cutoff for $D_{Pos}$ and $D_{Neg}$
 
 We first show the example for $D_{Pos}$.
@@ -225,12 +237,7 @@ pos.sig.QBiC_score_info <-
 ##get the cutoff of QBiC scores based on BH FDR (indicated as T in paper)
 qvalue.cutoff.score <- min(pos.sig.QBiC_score_info$scores)
 
-# Normalize the weighted frequencies. After multiplying with signature
-# probability, the weighted frequency is 96 times less than the original
-# frequency. sum(freq) = 96*sum(weighted.freq)
-summaryofscores$weighted.freq <- 
-  summaryofscores$weighted.freq * 
-  sum(summaryofscores$frequency)/sum(summaryofscores$weighted.freq)
+
 ```
 
 Select $D'_{Pos}$ ($D'_{Neg}$) and $D_{Pos}$ ($D_{Neg}$) to calculate GR and LR
@@ -271,7 +278,8 @@ LR
 ```
 
 ### Calculate whether area($D'_{Pos}$) is statistically > area($D_{Pos}$)
-
+For the GR and LR predicted for a TF-signature pair, we did this statistical test when 
+the GR>1 or LR>1. So in this case, we only perform the statistical test for GR.
 Example of generating one set of random mutations with equal frequency.
 We generated 1000 sets of random mutations for statistical test
 
@@ -293,7 +301,6 @@ Generate GR and LR for random mutations assuming all mutations occur
 at equal frequency.
 
 ```{r Resampling_test}
-
 random.mut.freq <- data.frame(ResampleMutationFrequency(123),row.names = 1)
 
 summaryofscores.test <- 
@@ -303,31 +310,20 @@ summaryofscores.test <-
 summaryofscores.test$weighted.freq <- 
   summaryofscores.test$weighted.freq * 
   sum(summaryofscores.test$frequency)/sum(summaryofscores.test$weighted.freq)
-##Calculate GR and LR. Similar as above
-summaryofscores.test.Dpos <- 
-  summaryofscores.test[summaryofscores.test$scores>qvalue.cutoff.score, ] ##Select Dpos 
-
-Dpos <- rep(summaryofscores.test.Dpos$scores, 
-            summaryofscores.test.Dpos$frequency) #Transform the information from histogram to a numeric vector
-Dprimepos <- rep(summaryofscores.test.Dpos$scores, 
-                 round(summaryofscores.test.Dpos$weighted.freq, digits = 0))
-GR.resample = sum(Dprimepos)/sum(Dpos) ##GR.resample = 1 
-
-summaryofscores.test.Dneg <- 
-  summaryofscores.test[summaryofscores.test$scores<(-qvalue.cutoff.score), ] ##Select Dneg 
-
-Dneg <- rep(summaryofscores.test.Dneg$scores, 
-            summaryofscores.test.Dneg$frequency)
-
-Dprimeneg <- rep(summaryofscores.test.Dneg$scores, 
-                 round(summaryofscores.test.Dneg$weighted.freq, digits = 0))
-LR.resample = sum(Dprimeneg)/sum(Dneg) ##LR.resample = 1
 
 ```
 
-GR.resample = 1 shows that the distribution of 
-area({$D*_{Pos}$) < area($D'_{Pos}$) 
-under the resampled mutations with equal frequency.
-The situation is the same for the area({$D*_{Neg}$)
+### Calculate whether area($D'_{Pos}$) of resampled mutations with equal frequency is larger than area($D'_{Pos}$) of mutations with signature frequency
+```{r DprimePos_resamples_versus_DprimePos}
 
+##Calculate GR and LR. Similar as above
+summaryofscores.test.Dpos <- 
+  summaryofscores.test[summaryofscores.test$scores>qvalue.cutoff.score, ] ##Select Dpos
+Dprimepos_resampled <- rep(summaryofscores.test.Dpos$scores, 
+                 round(summaryofscores.test.Dpos$weighted.freq, digits = 0))
+GR.resample <- sum(Dprimepos)/sum(Dprimepos_resampled)
+GR.resample
+```
+
+GR.resample = 2.95 tells that area({$D*_{Pos}$) is larger than area($D'_{Pos}$) of the resampled mutations with equal frequency.
 
